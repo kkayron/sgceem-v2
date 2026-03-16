@@ -289,8 +289,8 @@ $queryString = http_build_query($paramsGET);
         <h6 class="text-muted">Listagem dos pregões realizados ou em andamento.</h6>
       </div>
       <div>
-        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalCadastrarEmpenho">
-          <i class="fa fa-plus me-1"></i> Cadastrar Empenho
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalCadastrarRequisicao">
+          <i class="fa fa-plus me-1"></i> Cadastrar Requisição
         </button>
           <!-- Botão Excel -->
 <button id="btnExportarExcelRequisicao" class="btn btn-success">
@@ -558,18 +558,19 @@ $batalhao_filtro = $_GET['batalhao'] ?? '';
            
   </ul>
 </div>
-
-              <?php if ($requisicao['empenho_gerado'] !== 'sim'): ?>
-
-                <button class="btn btn-sm btn-outline-warning"
+				<button class="btn btn-sm btn-outline-warning"
                         onclick="editarRequisicao(<?= $requisicao['id'] ?>)"
                         data-bs-toggle="modal"
                         data-bs-target="#modalEditarRequisicao">
                   <i class="fas fa-edit me-1"></i> Editar
                 </button>
 
+
+              <?php if ($requisicao['empenho_gerado'] !== 'sim'): ?>
+
+                
                 <button class="btn btn-sm btn-outline-success"
-                        onclick="editarEmpenho(<?= $requisicao['id'] ?>)"
+                        onclick="gerarEmpenho(<?= $requisicao['id'] ?>)"
                         data-bs-toggle="modal"
                         data-bs-target="#modalGerarEmpenho">
                   <i class="fas fa-file-invoice-dollar me-1"></i> Gerar Empenho
@@ -656,181 +657,144 @@ $batalhao_filtro = $_GET['batalhao'] ?? '';
 
 </div>
 
-<!-- Modal Cadastrar Empenho -->
-<div class="modal fade" id="modalCadastrarEmpenho" tabindex="-1" aria-labelledby="modalLabelCadastrarEmpenho" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered modal-lg">
-    <div class="modal-content">
-      
-      <div class="modal-header bg-success text-white">
-        <h5 class="modal-title" id="modalLabelCadastrarEmpenho">Cadastrar Empenho</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-      </div>
+<!-- Modal de Cadastro Requisição -->
+<div class="modal fade" id="modalCadastrarRequisicao" tabindex="-1" aria-labelledby="modalLabelCadastrarRequisicao" aria-hidden="true">
+<div class="modal-dialog modal-dialog-centered modal-xl">
+<div class="modal-content">
 
-      <div class="modal-body">
-        <form id="form-cadastrar-empenho" method="POST">
+<div class="modal-header bg-success text-white">
+<h5 class="modal-title">Cadastrar Requisição</h5>
+<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+</div>
 
-          <!-- BATALHÃO -->
-          <div class="mb-3">
-            <label class="form-label fw-semibold">Batalhão</label>
-            <select id="empenho-batalhao" name="batalhao" class="form-select">
-              <?php foreach ($oms_visiveis as $id => $nome): ?>
-                <option value="<?= $id ?>"><?= htmlspecialchars($nome) ?></option>
-              <?php endforeach; ?>
-            </select>
-          </div>
+<div class="modal-body">
 
-          <!-- FORNECEDOR -->
-          <div class="mb-3">
-            <label class="form-label fw-semibold">Fornecedor</label>
-            <select id="empenho-fornecedor" name="id_fornecedor" class="form-select" required>
-              <option value="">Selecione um fornecedor</option>
+<form method="POST" id="form-requisicao-cadastrar">
 
-              <?php
-              $sql_for = $conexao->query("SELECT id, nome_empresa FROM fin_fornecedores ORDER BY nome_empresa ASC");
-              while ($for = $sql_for->fetch_assoc()):
-              ?>
-                <option value="<?= $for['id'] ?>"><?= htmlspecialchars($for['nome_empresa']) ?></option>
-              <?php endwhile; ?>
+<div class="row g-3">
 
-            </select>
-          </div>
+<div class="col-md-3">
+<label class="form-label">Batalhão</label>
+<select id="cadastrar-batalhao" name="batalhao" class="form-select">
+<?php foreach ($oms_visiveis as $id => $nome): ?>
+<option value="<?= $id ?>"><?= htmlspecialchars($nome) ?></option>
+<?php endforeach; ?>
+</select>
+</div>
 
-          <!-- CAMPOS DO MODAL DE CADASTRAR REQUISIÇÃO -->
-          <div class="row">
-            <div class="col-md-6 mb-3">
-              <label class="form-label">Requisitante</label>
-              <input type="text" class="form-control" id="empenho-requisitante" name="requisitante" required>
-            </div>
+<div class="col-md-3">
+<label class="form-label">Requisitante</label>
+<input type="text" class="form-control" name="requisitante" required>
+</div>
 
-            <div class="col-md-6 mb-3">
-              <label class="form-label">Natureza da Despesa</label>
-              <input type="text" class="form-control" id="empenho-naturezadespesa" name="naturezadespesa" required>
-            </div>
-          </div>
+<div class="col-md-3">
+<label class="form-label">Destinatário</label>
+<input type="text" class="form-control" name="destinatario" required>
+</div>
 
-          <div class="row">
-            <div class="col-md-6 mb-3">
-              <label class="form-label">Item OOG</label>
-              <input type="text" class="form-control" id="empenho-item_oog" name="item_oog" required>
-            </div>
+<div class="col-md-3">
+<label class="form-label">Natureza Despesa</label>
+<input type="text" class="form-control" name="natureza_despesa" required>
+</div>
 
-            <div class="col-md-6 mb-3">
-              <label class="form-label">Finalidade</label>
-              <input type="text" class="form-control" id="empenho-finalidade" name="finalidade" required>
-            </div>
-          </div>
+<div class="col-md-4">
+<label class="form-label">Finalidade</label>
+<input type="text" class="form-control" name="finalidade" required>
+</div>
 
-          <div class="row">
-            <div class="col-md-6 mb-3">
-              <label class="form-label">Destinatário</label>
-              <input type="text" class="form-control" id="empenho-destinatario" name="destinatario" required>
-            </div>
+<div class="col-md-2">
+<label class="form-label">Item OOG</label>
+<input type="text" class="form-control" name="item_oog" required>
+</div>
 
-            <div class="col-md-6 mb-3">
-              <label class="form-label">Nota Crédito</label>
-              <input type="text" class="form-control" id="empenho-nota_credito" name="nota_credito" required>
-            </div>
-          </div>
+<div class="col-md-3">
+<label class="form-label">Nota Crédito</label>
+<input type="text" class="form-control" name="nota_credito" required>
+</div>
 
-          <div class="row">
-            <div class="col-md-6 mb-3">
-              <label class="form-label">Plano Interno</label>
-              <input type="text" class="form-control" id="empenho-plano_interno" name="plano_interno" required>
-            </div>
+<div class="col-md-3">
+<label class="form-label">Plano Interno</label>
+<input type="text" class="form-control" name="plano_interno" required>
+</div>
 
-            <div class="col-md-6 mb-3">
-              <label class="form-label">Necessidade de Contrato?</label>
-              <select class="form-select" id="empenho-necessidade_contrato" name="necessidade_contrato">
-                <option value="Sim">Sim</option>
-                <option value="Não">Não</option>
-              </select>
-            </div>
-          </div>
+<div class="col-md-3">
+<label class="form-label">Necessidade de Contrato</label>
+<select class="form-select" name="necessidade_contrato" required>
+<option value="Sim">Sim</option>
+<option value="Não">Não</option>
+</select>
+</div>
 
-          <div class="row">
-            <div class="col-md-6 mb-3">
-              <label class="form-label">Tipo de Empenho</label>
-              <select class="form-select" id="empenho-tipo_empenho" name="tipo_empenho">
-                <option value="Global">Global</option>
-                <option value="Ordinário">Ordinário</option>
-              </select>
-            </div>
+<div class="col-md-3">
+<label class="form-label">Tipo Empenho</label>
+<select class="form-select" name="tipo_empenho" required>
+<option value="Global">Global</option>
+<option value="Ordinário">Ordinário</option>
+</select>
+</div>
 
-            <div class="col-md-6 mb-3">
-              <label class="form-label">Status da Requisição</label>
-              <select class="form-select" id="empenho-status_requisicao" name="status_requisicao">
-                <option value="Em confecção">Em confecção</option>
-                <option value="Entregue na S4">Entregue na S4</option>
-                <option value="Entregue na Fisc Adm">Entregue na Fisc Adm</option>
-                <option value="Entregue na SALC">Entregue na SALC</option>
-                <option value="Empenho gerado">Empenho gerado</option>
-              </select>
-            </div>
-          </div>
+<div class="col-md-3">
+<label class="form-label">Status Requisição</label>
+<select class="form-select" name="status_requisicao" required>
+<option value="Em confecção">Em confecção</option>
+<option value="Entregue na S4">Entregue na S4</option>
+<option value="Entregue na Fisc Adm">Entregue na Fisc Adm</option>
+<option value="Entregue na SALC">Entregue na SALC</option>
+<option value="Empenho gerado">Empenho gerado</option>
+</select>
+</div>
 
-          <hr>
+</div>
 
-          <!-- CAMPOS DO MODAL GERAR EMPENHO -->
-          <div class="row">
-            <div class="col-md-4 mb-3">
-              <label class="form-label">Data do Empenho</label>
-              <input type="date" class="form-control" id="empenho-data" name="data_empenho" required>
-            </div>
+<hr>
 
-            <div class="col-md-4 mb-3">
-              <label class="form-label">Número do Empenho</label>
-              <input type="text" class="form-control" id="empenho-numero" name="nmr_empenho" required>
-            </div>
+<h5 class="fw-bold">Itens da Requisição</h5>
 
-            <div class="col-md-4 mb-3">
-              <label class="form-label">Ano</label>
-              <input type="text" class="form-control" id="empenho-ano" name="ano" required>
-            </div>
-          </div>
+<div class="mb-3">
+<label class="form-label">Pregão da Requisição</label>
+<select class="form-select" id="cadastrar-pregao" name="id_pregao" required>
+<option value="">Selecione um pregão</option>
+</select>
+</div>
 
-          <div class="mb-3">
-            <label class="form-label">Obra</label>
-            <input type="text" class="form-control" id="empenho-obra" name="obra" required>
-          </div>
+<div id="itensRequisicaoContainerCadastrar" style="display:none;">
 
-          <div class="mb-3">
-            <label class="form-label">Categoria</label>
-            <input type="text" class="form-control" id="empenho-categoria" name="categoria" required>
-          </div>
+<button type="button" class="btn btn-info btn-sm mb-3" id="btnAdicionarItemRequisicaoCadastrar">
+Adicionar item à requisição
+</button>
 
-          <div class="row">
-            <div class="col-md-6 mb-3">
-              <label class="form-label">Local</label>
-              <select class="form-select" id="empenho-local" name="local">
-                <option value="Sede">Sede</option>
-                <option value="Destacamento 1">Destacamento 1</option>
-              </select>
-            </div>
+<div class="table-responsive">
+<table class="table table-bordered table-sm">
 
-            <div class="col-md-6 mb-3">
-              <label class="form-label">Resto a pagar?</label>
-              <select class="form-select" id="empenho-resto_pagar" name="resto_pagar">
-                <option value="Sim">Sim</option>
-                <option value="Não">Não</option>
-              </select>
-            </div>
-          </div>
+<thead class="table-light">
+<tr>
+<th width="5%">#</th>
+<th width="45%">Item do Pregão</th>
+<th width="15%">Quantidade</th>
+<th width="15%">Valor Unit.</th>
+<th width="15%">Total</th>
+<th width="5%"></th>
+</tr>
+</thead>
 
-          <!-- NOVO CAMPO -->
-          <div class="mb-3">
-            <label class="form-label">Valor Total Empenhado</label>
-            <input type="text" class="form-control" id="empenho-valor_total" name="valor_empenhado" required>
-          </div>
+<tbody id="itensRequisicaoListaCadastrar"></tbody>
 
-          <button type="submit" class="btn btn-success w-100">
-            <i class="fas fa-save me-1"></i> Salvar Empenho
-          </button>
+</table>
+</div>
 
-        </form>
-      </div>
+</div>
 
-    </div>
-  </div>
+<div class="text-end mt-3">
+<button type="submit" class="btn btn-success">
+Cadastrar Requisição
+</button>
+</div>
+
+</form>
+
+</div>
+</div>
+</div>
 </div>
 
 
@@ -938,7 +902,79 @@ $batalhao_filtro = $_GET['batalhao'] ?? '';
 </div>
 
 
+<!-- Modal de Gerar Empenho -->
+<div class="modal fade" id="modalGerarEmpenho" tabindex="-1" aria-labelledby="modalLabelGerarEmpenho" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
 
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title" id="modalLabelGerarEmpenho">
+          <i class="fas fa-file-invoice-dollar me-2"></i> Gerar Empenho
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body">
+
+        <form id="form-gerar-empenho">
+
+          <div class="mb-3">
+            <label class="form-label">Data do Empenho</label>
+            <input type="date" class="form-control" name="data_empenho" required>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Número do Empenho</label>
+            <input type="text" class="form-control" name="nmr_empenho" required>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Obra</label>
+            <input type="text" class="form-control" name="obra" required>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Ano do Empenho</label>
+            <input type="text" class="form-control" name="ano" required>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Categoria</label>
+            <input type="text" class="form-control" name="categoria" required>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Local</label>
+            <select class="form-select" name="local" required>
+              <option value="">Selecione</option>
+              <option value="Sede">Sede</option>
+              <option value="Destacamento 1">Destacamento 1</option>
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Resto a pagar?</label>
+            <select class="form-select" name="resto_pagar" required>
+              <option value="Não">Não</option>
+              <option value="Sim">Sim</option>
+            </select>
+          </div>
+
+          <!-- ID da requisição -->
+          <input type="hidden" id="gerar-id-requisicao" name="id">
+
+          <button type="submit" class="btn btn-success w-100">
+            <i class="fas fa-file-invoice-dollar me-1"></i>
+            Salvar Empenho
+          </button>
+
+        </form>
+
+      </div>
+
+    </div>
+  </div>
+</div>
 
 <!-- Modal do ver requisição -->
 <div class="modal fade" id="modalVerRequisicao" tabindex="-1" aria-labelledby="modalVerRequisicaoLabel" aria-hidden="true">
@@ -1008,11 +1044,11 @@ $batalhao_filtro = $_GET['batalhao'] ?? '';
 
 
 
-<!-- Script da página de Requisição de Vtr/Eqp -->
 <script>
-    window.funcaoInicializacao = 'inicializarRequisicao';
-  
-    
+
+window.funcaoInicializacao = 'inicializarRequisicao';
+window.funcaoInicializacaoCadastrar = 'inicializarRequisicaoCadastrar';
+
 </script>
 
 

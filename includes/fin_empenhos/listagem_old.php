@@ -1,7 +1,4 @@
 <?php
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
 header('Content-Type: text/html; charset=utf-8');
 session_start();
 include_once('../../conexao/config.php');
@@ -10,8 +7,8 @@ include_once('../../conexao/config.php');
 // DADOS DO USUÁRIO
 // ======================================================================
 $usuario          = $_SESSION['usuario'] ?? [];
-$nivel_usuario    = (int)($usuario['nivel'] ?? 3);
-$batalhao_usuario = (int)($usuario['batalhao'] ?? 0);
+$nivel_usuario    = $usuario['nivel'] ?? 3;
+$batalhao_usuario = $usuario['batalhao'] ?? null;
 
 if (!$batalhao_usuario) {
     die("Erro: não foi possível identificar o batalhão do usuário.");
@@ -23,45 +20,37 @@ if (!$batalhao_usuario) {
 $id               = $_GET['id'] ?? '';
 $id_requisicao    = $_GET['id_requisicao'] ?? '';
 $requisitante     = $_GET['requisitante'] ?? '';
-$marca            = $_GET['marca'] ?? '';
+$marca     = $_GET['marca'] ?? '';
 $destinatario     = $_GET['destinatario'] ?? '';
-$obra             = $_GET['obra'] ?? '';
-$nmr_empenho      = $_GET['nmr_empenho'] ?? '';
-$ano              = $_GET['ano'] ?? '';
-$categoria        = $_GET['categoria'] ?? '';
-$local            = $_GET['local'] ?? '';
-$fornecedor       = $_GET['fornecedor'] ?? '';
+$obra = $_GET['obra'] ?? '';
+$ano = $_GET['ano'] ?? '';
+$categoria = $_GET['categoria'] ?? '';
+$local = $_GET['local'] ?? '';
+$fornecedor = $_GET['fornecedor'] ?? '';
 $filtro_batalhao  = $_GET['batalhao'] ?? '';
-$saldo_real       = $_GET['saldo_real'] ?? ''; // positivo|zerado|negativo
 
 $filtros = [];
 $params  = [];
 $tipos   = "";
 
-// ======================================================================
-// FILTROS EXISTENTES
-// ======================================================================
+// ID do empenho
 if (!empty($id)) {
     $filtros[] = "e.id = ?";
-    $params[]  = (int)$id;
+    $params[]  = $id;
     $tipos    .= "i";
 }
 
+// ID requisição vinculada
 if (!empty($id_requisicao)) {
     $filtros[] = "r.id = ?";
-    $params[]  = (int)$id_requisicao;
+    $params[]  = $id_requisicao;
     $tipos    .= "i";
 }
 
+// Campos LIKE
 if (!empty($requisitante)) {
     $filtros[] = "r.requisitante LIKE ?";
     $params[]  = "%{$requisitante}%";
-    $tipos    .= "s";
-}
-
-if (!empty($nmr_empenho)) {
-    $filtros[] = "e.nmr_empenho LIKE ?";
-    $params[]  = "%{$nmr_empenho}%";
     $tipos    .= "s";
 }
 
@@ -77,41 +66,48 @@ if (!empty($destinatario)) {
     $tipos    .= "s";
 }
 
+// Obra
 if (!empty($obra)) {
     $filtros[] = "e.obra = ?";
     $params[]  = $obra;
     $tipos    .= "s";
 }
 
+// Categoria
 if (!empty($categoria)) {
     $filtros[] = "e.categoria = ?";
     $params[]  = $categoria;
     $tipos    .= "s";
 }
 
+// Local
 if (!empty($local)) {
     $filtros[] = "e.local = ?";
     $params[]  = $local;
     $tipos    .= "s";
 }
 
+// Ano
 if (!empty($ano)) {
     $filtros[] = "e.ano = ?";
     $params[]  = $ano;
     $tipos    .= "s";
 }
 
+// Fornecedor
 if (!empty($fornecedor)) {
     $filtros[] = "r.id_fornecedor = ?";
-    $params[]  = (int)$fornecedor;
-    $tipos    .= "i";
+    $params[]  = $fornecedor;
+    $tipos    .= "s";
 }
 
 // ======================================================================
-// CONTROLE DE ACESSO POR NÍVEL (mantido)
+// CONTROLE DE ACESSO POR NÍVEL (FILTRA POR r.batalhao)
 // ======================================================================
+
 if ($nivel_usuario == 1) {
 
+    // Admin vê tudo, mas pode escolher um batalhão
     if (!empty($filtro_batalhao)) {
         $filtros[] = "r.batalhao = ?";
         $params[]  = (int)$filtro_batalhao;
@@ -120,6 +116,7 @@ if ($nivel_usuario == 1) {
 
 } elseif ($nivel_usuario == 2) {
 
+    // N2 vê seu batalhão + todos subordinados
     $sqlSubs = "SELECT id_om_menor FROM organizacoes_militares_sub WHERE id_om_maior = ?";
     $stmtSubs = $conexao->prepare($sqlSubs);
     $stmtSubs->bind_param("i", $batalhao_usuario);
@@ -128,13 +125,14 @@ if ($nivel_usuario == 1) {
 
     $batalhoesPermitidos = [$batalhao_usuario];
     while ($row = $resSubs->fetch_assoc()) {
-        $batalhoesPermitidos[] = (int)$row['id_om_menor'];
+        $batalhoesPermitidos[] = $row['id_om_menor'];
     }
+
     $stmtSubs->close();
 
     if (!empty($filtro_batalhao)) {
 
-        if (!in_array((int)$filtro_batalhao, $batalhoesPermitidos, true)) {
+        if (!in_array($filtro_batalhao, $batalhoesPermitidos)) {
             die("Acesso negado ao batalhão selecionado.");
         }
 
@@ -144,88 +142,48 @@ if ($nivel_usuario == 1) {
 
     } else {
 
+        // monta IN dinâmico
         $placeholder = implode(",", array_fill(0, count($batalhoesPermitidos), "?"));
-        $filtros[] = "r.batalhao IN ($placeholder)";
+        $filtros[]   = "r.batalhao IN ($placeholder)";
 
         foreach ($batalhoesPermitidos as $b) {
-            $params[] = (int)$b;
+            $params[] = $b;
             $tipos   .= "i";
         }
     }
 
 } else {
+
+    // N3 vê apenas seu batalhão
     $filtros[] = "r.batalhao = ?";
-    $params[]  = (int)$batalhao_usuario;
+    $params[]  = $batalhao_usuario;
     $tipos    .= "i";
-}
-
-// ======================================================================
-// 🔹 FILTRO SALDO REAL (leve) usando EXISTS
-// (evita subquery gigante com GROUP BY)
-// ======================================================================
-// ======================================================================
-// 🔹 FILTRO SALDO REAL
-// ======================================================================
-
-$condicaoSaldo = '';
-
-if (!empty($saldo_real)) {
-
-$subTotalGasto = "
-(
-SELECT COALESCE(SUM(pf.valor_total * (1 - COALESCE(p.desconto_empenho,0)/100)),0)
-FROM fin_ordemforn o
-JOIN fin_ordemforn_pedidos op ON op.id_ordemforn = o.id
-JOIN fin_pedidos_forn p ON p.id = op.id_pedido
-LEFT JOIN fin_pedidos_forn_itens pf ON pf.id_principal = p.id
-WHERE o.id_empenho = e.id
-)
-";
-if ($saldo_real === 'positivo') {
-    $condicaoSaldo = "(r.valor_empenhado - $subTotalGasto) > 0";
-}
-elseif ($saldo_real === 'zerado') {
-    $condicaoSaldo = "(r.valor_empenhado - $subTotalGasto) = 0";
-}
-elseif ($saldo_real === 'negativo') {
-    $condicaoSaldo = "(r.valor_empenhado - $subTotalGasto) < 0";
-}
-
 }
 
 // ======================================================================
 // WHERE FINAL
 // ======================================================================
-$condicoesBase = !empty($filtros) ? implode(" AND ", $filtros) : '';
+$condicoes = !empty($filtros) ? "WHERE " . implode(" AND ", $filtros) : "";
 
-if ($condicoesBase && $condicaoSaldo) {
-    $condicoes = "WHERE $condicoesBase AND $condicaoSaldo";
-} elseif ($condicoesBase) {
-    $condicoes = "WHERE $condicoesBase";
-} elseif ($condicaoSaldo) {
-    $condicoes = "WHERE $condicaoSaldo";
-} else {
-    $condicoes = "";
-}
 
 // ======================================================================
 // PAGINAÇÃO
 // ======================================================================
-$limite = (isset($_GET['limite']) && is_numeric($_GET['limite'])) ? (int)$_GET['limite'] : 10;
-$pagina = (isset($_GET['pagina']) && is_numeric($_GET['pagina']) && $_GET['pagina'] > 0) ? (int)$_GET['pagina'] : 1;
+$limite = isset($_GET['limite']) && is_numeric($_GET['limite']) ? (int)$_GET['limite'] : 10;
+$pagina = isset($_GET['pagina']) && is_numeric($_GET['pagina']) && $_GET['pagina'] > 0
+    ? (int)$_GET['pagina'] : 1;
+
 $offset = ($pagina - 1) * $limite;
 
-// ======================================================================
-// CONTAGEM TOTAL (SEM JOIN pesado de gastos)
-// ======================================================================
 
-$condicoesTotal = !empty($filtros) ? "WHERE " . implode(" AND ", $filtros) : "";
-
+// ======================================================================
+// CONTAGEM TOTAL
+// ======================================================================
 $sqlTotal = "
-SELECT COUNT(*) AS total
-FROM fin_empenhos e
-INNER JOIN fin_requisicao r ON e.id_requisicao = r.id
-$condicoesTotal
+    SELECT COUNT(*) AS total
+    FROM fin_empenhos e
+    INNER JOIN fin_requisicao r ON e.id_requisicao = r.id
+    $condicoes
 ";
 
 $stmtTotal = $conexao->prepare($sqlTotal);
@@ -233,37 +191,31 @@ if (!empty($params)) {
     $stmtTotal->bind_param($tipos, ...$params);
 }
 $stmtTotal->execute();
-$totalRegistros = (int)($stmtTotal->get_result()->fetch_assoc()['total'] ?? 0);
-$totalPaginas = max(1, (int)ceil($totalRegistros / $limite));
-$stmtTotal->close();
+$totalRegistros = $stmtTotal->get_result()->fetch_assoc()['total'];
+$totalPaginas = ceil($totalRegistros / $limite);
+
 
 // ======================================================================
-// BUSCA PRINCIPAL (SEM JOIN pesado de gastos)
+// BUSCA PRINCIPAL
 // ======================================================================
 $sql = "
-SELECT 
-    e.*,
-    r.requisitante,
-    r.destinatario,
-    r.status_requisicao,
-    r.nota_credito,
-    r.marca,
-    r.id_fornecedor,
-    r.batalhao,
-    r.valor_empenhado,
-	e.id,
-
-    om.nome AS nome_batalhao
-
-FROM fin_empenhos e
-INNER JOIN fin_requisicao r ON e.id_requisicao = r.id
-LEFT JOIN organizacoes_militares om ON om.id = r.batalhao
-
-$condicoes
-ORDER BY e.id DESC
-LIMIT ? OFFSET ?
+    SELECT 
+        e.*, 
+        r.requisitante, 
+        r.destinatario, 
+        r.status_requisicao, 
+        r.nota_credito,
+        r.marca,
+        r.id_fornecedor,
+        r.batalhao,
+        om.nome AS nome_batalhao
+    FROM fin_empenhos e
+    INNER JOIN fin_requisicao r ON e.id_requisicao = r.id
+    LEFT JOIN organizacoes_militares om ON om.id = r.batalhao
+    $condicoes
+    ORDER BY e.id DESC
+    LIMIT ? OFFSET ?
 ";
-
 $paramsExec = $params;
 $tiposExec  = $tipos;
 
@@ -274,188 +226,112 @@ $tiposExec .= "ii";
 $stmt = $conexao->prepare($sql);
 $stmt->bind_param($tiposExec, ...$paramsExec);
 $stmt->execute();
-$res = $stmt->get_result();
+$empenhos = $stmt->get_result();
 
-// ======================================================================
-// Carrega empenhos da página em array + ids
-// ======================================================================
-$empenhosArray = [];
-$idsEmpenhoPagina = [];
-
-while ($row = $res->fetch_assoc()) {
-    $empenhosArray[] = $row;
-    $idsEmpenhoPagina[] = (int)$row['id'];
-}
-
-$stmt->close();
-
-// ======================================================================
-// Calcula TOTAL_GASTO só dos empenhos da página (anti MAX_JOIN_SIZE)
-// (sem JOIN direto com fin_pedidos_forn_itens)
-// ======================================================================
-$gastosPorEmpenho = []; // [id_empenho => total_gasto]
-
-if (!empty($idsEmpenhoPagina)) {
-
-    // 1) Pega os pedidos (id_pedido) vinculados aos empenhos da página
-    $inEmp = implode(',', array_fill(0, count($idsEmpenhoPagina), '?'));
-
-    $sqlEmpPedidos = "
-        SELECT o.id_empenho, op.id_pedido
-        FROM fin_ordemforn o
-        JOIN fin_ordemforn_pedidos op ON op.id_ordemforn = o.id
-        WHERE o.id_empenho IN ($inEmp)
-    ";
-
-    $stmtEP = $conexao->prepare($sqlEmpPedidos);
-    $tiposEP = str_repeat('i', count($idsEmpenhoPagina));
-    $stmtEP->bind_param($tiposEP, ...$idsEmpenhoPagina);
-    $stmtEP->execute();
-    $rsEP = $stmtEP->get_result();
-
-    $mapEmpenhoPedidos = []; // [id_empenho => [id_pedido, id_pedido...]]
-    $idsPedidos = [];        // lista única de pedidos
-
-    while ($row = $rsEP->fetch_assoc()) {
-        $idEmp = (int)$row['id_empenho'];
-        $idPed = (int)$row['id_pedido'];
-
-        if ($idEmp <= 0 || $idPed <= 0) continue;
-
-        $mapEmpenhoPedidos[$idEmp][] = $idPed;
-        $idsPedidos[$idPed] = true; // set
-    }
-    $stmtEP->close();
-
-    // Se não tem pedidos vinculados, já termina
-    if (!empty($idsPedidos)) {
-
-        // 2) Soma por pedido (id_principal = id_pedido)
-        $listaPedidos = array_keys($idsPedidos);
-        $inPed = implode(',', array_fill(0, count($listaPedidos), '?'));
-
-        $sqlSomaPedidos = "
-SELECT 
-    p.id,
-    COALESCE(SUM(i.valor_total),0) AS total_itens,
-    COALESCE(p.desconto_empenho,0) AS desconto
-FROM fin_pedidos_forn p
-LEFT JOIN fin_pedidos_forn_itens i 
-    ON i.id_principal = p.id
-WHERE p.id IN ($inPed)
-GROUP BY p.id
-";
-
-       $stmtSP = $conexao->prepare($sqlSomaPedidos);
-$tiposSP = str_repeat('i', count($listaPedidos));
-$stmtSP->bind_param($tiposSP, ...$listaPedidos);
-$stmtSP->execute();
-$rsSP = $stmtSP->get_result();
-
-$totalPorPedido = []; // [id_pedido => total_final]
-
-while ($r = $rsSP->fetch_assoc()) {
-
-    $totalItens = (float)$r['total_itens'];
-    $desconto = (float)$r['desconto'];
-
-    // aplica desconto percentual
-    $totalFinal = $totalItens * (1 - $desconto / 100);
-
-    $totalPorPedido[(int)$r['id']] = $totalFinal;
-}
-
-$stmtSP->close();
-
-        // 3) Agrega por empenho em PHP
-        foreach ($mapEmpenhoPedidos as $idEmp => $pedidosDoEmp) {
-            $soma = 0.0;
-            foreach ($pedidosDoEmp as $idPed) {
-                $soma += (float)($totalPorPedido[$idPed] ?? 0);
-            }
-            $gastosPorEmpenho[(int)$idEmp] = $soma;
-        }
-    }
-}
 
 // ======================================================================
 // PAGINAÇÃO (Estilo Frota)
 // ======================================================================
-if (!function_exists('renderPaginacaoEmpenhos')) {
+function renderPaginacaoEmpenhos($pagina, $totalPaginas, $limite, $queryString, $arquivo = 'includes/fin_empenhos/listagem.php') {
 
-    function renderPaginacaoEmpenhos($pagina, $totalPaginas, $limite, $queryString, $arquivo = 'includes/fin_empenhos/listagem.php') {
+    // Limite de páginas exibidas no bloco central
+    $maxLinks = 10;
 
-        $maxLinks = 10;
+    // Função para montar URLs
+    $makeUrl = function($p) use ($arquivo, $queryString, $limite) {
+        return "{$arquivo}?{$queryString}&pagina={$p}&limite={$limite}";
+    };
 
-        $makeUrl = function($p) use ($arquivo, $queryString, $limite) {
-            return "{$arquivo}?{$queryString}&pagina={$p}&limite={$limite}";
-        };
+    $html = '<div class="pagination-wrapper">';
+    $html .= '<nav><ul class="pagination pagination-sm">';
 
-        $html = '<div class="pagination-wrapper">';
-        $html .= '<nav><ul class="pagination pagination-sm">';
-
-        if ($pagina > 1) {
-            $html .= "<li class='page-item'>
-                        <a class='page-link paginacao-empenho' href='#' data-page='" . $makeUrl(1) . "'>&laquo; Primeira</a>
-                      </li>";
-        }
-
-        if ($pagina > 1) {
-            $prev = $pagina - 1;
-            $html .= "<li class='page-item'>
-                        <a class='page-link paginacao-empenho' href='#' data-page='" . $makeUrl($prev) . "'>&lsaquo;</a>
-                      </li>";
-        }
-
-        $inicio = max(1, $pagina - floor($maxLinks / 2));
-        $fim    = min($totalPaginas, $inicio + $maxLinks - 1);
-
-        if (($fim - $inicio) < ($maxLinks - 1)) {
-            $inicio = max(1, $fim - $maxLinks + 1);
-        }
-
-        if ($inicio > 1) {
-            $html .= "<li class='page-item disabled'><span class='page-link'>...</span></li>";
-        }
-
-        for ($i = $inicio; $i <= $fim; $i++) {
-            $ativo = ($i == $pagina) ? 'active' : '';
-            $html .= "<li class='page-item {$ativo}'>
-                        <a class='page-link paginacao-empenho' href='#' data-page='" . $makeUrl($i) . "'>{$i}</a>
-                      </li>";
-        }
-
-        if ($fim < $totalPaginas) {
-            $html .= "<li class='page-item disabled'><span class='page-link'>...</span></li>";
-        }
-
-        if ($pagina < $totalPaginas) {
-            $next = $pagina + 1;
-            $html .= "<li class='page-item'>
-                        <a class='page-link paginacao-empenho' href='#' data-page='" . $makeUrl($next) . "'>&rsaquo;</a>
-                      </li>";
-        }
-
-        if ($pagina < $totalPaginas) {
-            $html .= "<li class='page-item'>
-                        <a class='page-link paginacao-empenho' href='#' data-page='" . $makeUrl($totalPaginas) . "'>Última &raquo;</a>
-                      </li>";
-        }
-
-        $html .= '</ul></nav></div>';
-        return $html;
+    // ===============================
+    // 🔹 Botão PRIMEIRA página
+    // ===============================
+    if ($pagina > 1) {
+        $html .= "<li class='page-item'>
+                    <a class='page-link paginacao-empenho' href='#' data-page='" . $makeUrl(1) . "'>&laquo; Primeira</a>
+                  </li>";
     }
+
+    // ===============================
+    // 🔹 Botão ANTERIOR
+    // ===============================
+    if ($pagina > 1) {
+        $prev = $pagina - 1;
+        $html .= "<li class='page-item'>
+                    <a class='page-link paginacao-empenho' href='#' data-page='" . $makeUrl($prev) . "'>&lsaquo;</a>
+                  </li>";
+    }
+
+    // ===============================
+    // 🔹 Cálculo das páginas visíveis
+    // ===============================
+    $inicio = max(1, $pagina - floor($maxLinks / 2));
+    $fim    = min($totalPaginas, $inicio + $maxLinks - 1);
+
+    // Ajusta caso esteja próximo do fim
+    if (($fim - $inicio) < ($maxLinks - 1)) {
+        $inicio = max(1, $fim - $maxLinks + 1);
+    }
+
+    // ===============================
+    // 🔹 Reticências antes
+    // ===============================
+    if ($inicio > 1) {
+        $html .= "<li class='page-item disabled'><span class='page-link'>...</span></li>";
+    }
+
+    // ===============================
+    // 🔹 Loop das páginas
+    // ===============================
+    for ($i = $inicio; $i <= $fim; $i++) {
+        $ativo = ($i == $pagina) ? 'active' : '';
+        $html .= "<li class='page-item {$ativo}'>
+                    <a class='page-link paginacao-empenho' href='#' data-page='" . $makeUrl($i) . "'>{$i}</a>
+                  </li>";
+    }
+
+    // ===============================
+    // 🔹 Reticências depois
+    // ===============================
+    if ($fim < $totalPaginas) {
+        $html .= "<li class='page-item disabled'><span class='page-link'>...</span></li>";
+    }
+
+    // ===============================
+    // 🔹 Botão PRÓXIMO
+    // ===============================
+    if ($pagina < $totalPaginas) {
+        $next = $pagina + 1;
+        $html .= "<li class='page-item'>
+                    <a class='page-link paginacao-empenho' href='#' data-page='" . $makeUrl($next) . "'>&rsaquo;</a>
+                  </li>";
+    }
+
+    // ===============================
+    // 🔹 Botão ÚLTIMA página
+    // ===============================
+    if ($pagina < $totalPaginas) {
+        $html .= "<li class='page-item'>
+                    <a class='page-link paginacao-empenho' href='#' data-page='" . $makeUrl($totalPaginas) . "'>Última &raquo;</a>
+                  </li>";
+    }
+
+    $html .= '</ul></nav></div>';
+    return $html;
 }
 
 
-// ======================================================================
-// QUERY STRING
-// ======================================================================
+// ==============================
+// 🔹 Mantém query string dos filtros
+// ==============================
 $paramsGET = $_GET;
 unset($paramsGET['pagina']);
 $queryString = http_build_query($paramsGET);
-?>
 
+
+?>
 
 
 
@@ -559,14 +435,9 @@ $queryString = http_build_query($paramsGET);
 <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalImportarEmpenhos">
   Importar Empenhos
 </button>
-            <!-- Botão Excel -->
-<button id="btnExportarExcelEmpenhos" class="btn btn-success">
-    <i class="fas fa-file-excel"></i> Exportar Excel
-</button>
-
         </div>
     </div>
-      <div class="mb-3">
+       <div class="mb-3">
   <button class="btn btn-outline-primary w-100 d-flex justify-content-center align-items-center" onclick="toggleFiltrosEmpenho()">
     <i class="fas fa-search me-2"></i> Filtros
   </button>
@@ -741,203 +612,30 @@ $batalhao_filtro = $_GET['batalhao'] ?? '';
 // ===============================
 // VARIÁVEIS DE SOMA GERAL
 // ===============================
-$soma_total_empenhado   = 0;
-$soma_nao_entregue      = 0;
-$soma_entregue          = 0;
-$soma_capeador          = 0;
-$soma_liquidado         = 0;
-$soma_total_utilizado   = 0;
-$soma_saldo_siafi       = 0;
-$soma_saldo_real        = 0;
-$soma_diferenca         = 0;
-
-// ==========================================================
-// PRÉ-CARGAS (para não fazer SELECT dentro do loop)
-// ==========================================================
-
-// 1) Fornecedores da página (nome/cnpj)
-$fornecedorMap = []; // [id_fornecedor => ['nome_empresa'=>..., 'cnpj_empresa'=>...]]
-$idsFornecedorPagina = [];
-
-foreach ($empenhosArray as $e) {
-  if (!empty($e['id_fornecedor'])) {
-    $idsFornecedorPagina[(int)$e['id_fornecedor']] = true;
-  }
-}
-
-if (!empty($idsFornecedorPagina)) {
-  $listaF = array_keys($idsFornecedorPagina);
-  $inF = implode(',', array_fill(0, count($listaF), '?'));
-
-  $sqlF = "SELECT id, nome_empresa, cnpj_empresa FROM fin_fornecedores WHERE id IN ($inF)";
-  $stmtF = $conexao->prepare($sqlF);
-  $tiposF = str_repeat('i', count($listaF));
-  $stmtF->bind_param($tiposF, ...$listaF);
-  $stmtF->execute();
-  $rsF = $stmtF->get_result();
-
-  while ($f = $rsF->fetch_assoc()) {
-    $fornecedorMap[(int)$f['id']] = [
-      'nome_empresa' => $f['nome_empresa'] ?? '',
-      'cnpj_empresa' => $f['cnpj_empresa'] ?? '',
-    ];
-  }
-  $stmtF->close();
-}
-
-// 2) Valores por STATUS (Não entregue / Entregue / Capeador / Liquidado)
-//    -> anti MAX_JOIN_SIZE: pega pedidos por empenho, soma itens por pedido, soma por status em PHP.
-$valoresStatusPorEmpenho = []; // [id_empenho => ['Não entregue'=>x,'Entregue'=>y,'Capeador'=>y,'Liquidado'=>y]]
-
-if (!empty($idsEmpenhoPagina)) {
-
-// 2.1) Mapeia (id_empenho => lista de pedidos com status) // ESSE É O QUE EXIBE
-
-$inEmp = implode(',', array_fill(0, count($idsEmpenhoPagina), '?'));
-
-$sqlPedStatus = "
-    SELECT 
-        o.id_empenho, 
-        op.id_pedido, 
-        o.status
-    FROM fin_ordemforn o
-    JOIN fin_ordemforn_pedidos op 
-        ON op.id_ordemforn = o.id
-    WHERE o.id_empenho IN ($inEmp)
-";
-
-$stmtPS = $conexao->prepare($sqlPedStatus);
-$tiposPS = str_repeat('i', count($idsEmpenhoPagina));
-$stmtPS->bind_param($tiposPS, ...$idsEmpenhoPagina);
-$stmtPS->execute();
-$rsPS = $stmtPS->get_result();
-
-$pedidosInfo = []; // [id_pedido => ['id_empenho'=>..,'status'=>..]]
-$idsPedidosSet = [];
-
-while ($row = $rsPS->fetch_assoc()) {
-
-    $idEmp = (int)$row['id_empenho'];
-    $idPed = (int)$row['id_pedido'];
-    $st    = trim((string)($row['status'] ?? ''));
-
-    if ($idEmp <= 0 || $idPed <= 0) continue;
-
-    $pedidosInfo[$idPed] = [
-        'id_empenho' => $idEmp,
-        'status' => $st
-    ];
-
-    $idsPedidosSet[$idPed] = true;
-}
-
-$stmtPS->close();
-
-
-
-/* =========================================
-   2.2) Soma itens por pedido + aplica desconto
-========================================= */
-
-$totalPorPedido = []; // [id_pedido => total_final]
-
-if (!empty($idsPedidosSet)) {
-
-    $listaPedidos = array_keys($idsPedidosSet);
-    $inPed = implode(',', array_fill(0, count($listaPedidos), '?'));
-
-    $sqlSomaPedidos = "
-        SELECT 
-            p.id,
-            COALESCE(SUM(i.valor_total),0) AS total_itens,
-            COALESCE(p.desconto_empenho,0) AS desconto
-        FROM fin_pedidos_forn p
-        LEFT JOIN fin_pedidos_forn_itens i 
-            ON i.id_principal = p.id
-        WHERE p.id IN ($inPed)
-        GROUP BY p.id
-    ";
-
-    $stmtSP = $conexao->prepare($sqlSomaPedidos);
-    $tiposSP = str_repeat('i', count($listaPedidos));
-    $stmtSP->bind_param($tiposSP, ...$listaPedidos);
-    $stmtSP->execute();
-    $rsSP = $stmtSP->get_result();
-
-    while ($r = $rsSP->fetch_assoc()) {
-
-        $idPed = (int)$r['id'];
-        $totalItens = (float)$r['total_itens'];
-        $desconto = (float)$r['desconto']; // exemplo: 20 = 20%
-
-        // aplica desconto percentual
-        $totalFinal = $totalItens * (1 - ($desconto / 100.0));
-
-        $totalPorPedido[$idPed] = $totalFinal;
-    }
-
-    $stmtSP->close();
-}
-
-
-
-/* =========================================
-   2.3) Agrega por empenho e por status
-========================================= */
-
-foreach ($idsEmpenhoPagina as $idEmp) {
-
-    $valoresStatusPorEmpenho[(int)$idEmp] = [
-        'Não entregue' => 0.0,
-        'Entregue'     => 0.0,
-        'Capeador'     => 0.0,
-        'Liquidado'    => 0.0,
-    ];
-}
-
-
-foreach ($pedidosInfo as $idPed => $info) {
-
-    $idEmp = (int)$info['id_empenho'];
-    $stRaw = mb_strtolower(trim((string)$info['status']));
-    $valor = (float)($totalPorPedido[$idPed] ?? 0);
-
-    if (!isset($valoresStatusPorEmpenho[$idEmp])) {
-        continue;
-    }
-
-    if ($stRaw === 'não entregue' || $stRaw === 'nao entregue') {
-
-        $valoresStatusPorEmpenho[$idEmp]['Não entregue'] += $valor;
-
-    } elseif ($stRaw === 'entregue') {
-
-        $valoresStatusPorEmpenho[$idEmp]['Entregue'] += $valor;
-
-    } elseif ($stRaw === 'capeador') {
-
-        $valoresStatusPorEmpenho[$idEmp]['Capeador'] += $valor;
-
-    } elseif ($stRaw === 'liquidado' || $stRaw === 'pago') {
-
-        $valoresStatusPorEmpenho[$idEmp]['Liquidado'] += $valor;
-
-    }
-}
-}
+$soma_total_empenhado = 0;
+$soma_nao_entregue = 0;
+$soma_entregue = 0;
+$soma_capeador = 0;
+$soma_liquidado = 0;
+$soma_total_utilizado = 0;
+$soma_saldo_siafi = 0;
+$soma_saldo_real = 0;
+$soma_diferenca = 0;
 ?>
 
-<?php if (!empty($empenhosArray)): ?>
+<?php if ($empenhos->num_rows > 0): ?>
 
 <!-- =============================== -->
 <!--   RESUMO DOS VALORES - EM CARDS -->
 <!-- =============================== -->
+
 <div class="card border-0 shadow-sm mb-4">
   <div class="card-body">
     <h5 class="fw-bold mb-3">Resumo dos Valores dos Empenhos Exibidos</h5>
 
     <div class="row g-3">
 
+      <!-- Total Empenhado -->
       <div class="col-6 col-md-4 col-lg-3 col-xl-2">
         <div class="card text-center shadow-sm h-100">
           <div class="card-body p-2">
@@ -947,6 +645,7 @@ foreach ($pedidosInfo as $idPed => $info) {
         </div>
       </div>
 
+      <!-- Solicitado não entregue -->
       <div class="col-6 col-md-4 col-lg-3 col-xl-2">
         <div class="card text-center shadow-sm h-100">
           <div class="card-body p-2">
@@ -956,6 +655,7 @@ foreach ($pedidosInfo as $idPed => $info) {
         </div>
       </div>
 
+      <!-- Entregue não liquidado -->
       <div class="col-6 col-md-4 col-lg-3 col-xl-2">
         <div class="card text-center shadow-sm h-100">
           <div class="card-body p-2">
@@ -965,6 +665,7 @@ foreach ($pedidosInfo as $idPed => $info) {
         </div>
       </div>
 
+      <!-- Em Capeador -->
       <div class="col-6 col-md-4 col-lg-3 col-xl-2">
         <div class="card text-center shadow-sm h-100">
           <div class="card-body p-2">
@@ -974,6 +675,7 @@ foreach ($pedidosInfo as $idPed => $info) {
         </div>
       </div>
 
+      <!-- Liquidado -->
       <div class="col-6 col-md-4 col-lg-3 col-xl-2">
         <div class="card text-center shadow-sm h-100">
           <div class="card-body p-2">
@@ -983,6 +685,7 @@ foreach ($pedidosInfo as $idPed => $info) {
         </div>
       </div>
 
+      <!-- Total Utilizado -->
       <div class="col-6 col-md-4 col-lg-3 col-xl-2">
         <div class="card text-center shadow-sm h-100">
           <div class="card-body p-2">
@@ -992,6 +695,7 @@ foreach ($pedidosInfo as $idPed => $info) {
         </div>
       </div>
 
+      <!-- Saldo SIAFI -->
       <div class="col-6 col-md-4 col-lg-3 col-xl-2">
         <div class="card text-center shadow-sm h-100">
           <div class="card-body p-2">
@@ -1001,6 +705,7 @@ foreach ($pedidosInfo as $idPed => $info) {
         </div>
       </div>
 
+      <!-- Saldo Real -->
       <div class="col-6 col-md-4 col-lg-3 col-xl-2">
         <div class="card text-center shadow-sm h-100">
           <div class="card-body p-2">
@@ -1010,6 +715,7 @@ foreach ($pedidosInfo as $idPed => $info) {
         </div>
       </div>
 
+      <!-- Diferença -->
       <div class="col-6 col-md-4 col-lg-3 col-xl-2">
         <div class="card text-center shadow-sm h-100">
           <div class="card-body p-2">
@@ -1023,69 +729,95 @@ foreach ($pedidosInfo as $idPed => $info) {
   </div>
 </div>
 
+
 <div class="row g-3">
 
-<?php foreach ($empenhosArray as $empenho): ?>
+<?php while ($empenho = $empenhos->fetch_assoc()): ?>
 
 <?php
-$idEmpenho     = (int)$empenho['id'];
-$id_requisicao = (int)$empenho['id_requisicao'];
+$id_requisicao = $empenho['id_requisicao'];
 
-// ✅ Valor empenhado
-$valorEmpenhado2 = (float)($empenho['valor_empenhado'] ?? 0);
-$valorEmpenhado  = number_format($valorEmpenhado2, 2, ',', '.');
+/* ====================== TOTAL EMPENHADO ====================== */
+$stmtValor = $conexao->prepare("
+    SELECT valor_empenhado 
+    FROM fin_requisicao 
+    WHERE id = ?
+    LIMIT 1
+");
+$stmtValor->bind_param("i", $id_requisicao);
+$stmtValor->execute();
+$res = $stmtValor->get_result();
+$dadosValor = $res->fetch_assoc();
 
+$valorEmpenhado2 = floatval($dadosValor['valor_empenhado'] ?? 0);
+$valorEmpenhado = number_format($valorEmpenhado2, 2, ',', '.');
+$stmtValor->close();
+
+/* SOMA GERAL */
 $soma_total_empenhado += $valorEmpenhado2;
 
 
-// ✅ Fornecedor
-$idFornecedor = (int)($empenho['id_fornecedor'] ?? 0);
-$nome_empresa = $fornecedorMap[$idFornecedor]['nome_empresa'] ?? '';
-$cnpj_empresa = $fornecedorMap[$idFornecedor]['cnpj_empresa'] ?? '';
+/* ====================== FORNECEDOR ====================== */
+$stmtF = $conexao->prepare("
+    SELECT nome_empresa, cnpj_empresa
+    FROM fin_fornecedores
+    WHERE id = ?
+");
+$stmtF->bind_param("i", $empenho['id_fornecedor']);
+$stmtF->execute();
+$forn = $stmtF->get_result()->fetch_assoc();
+$stmtF->close();
 
+$nome_empresa = $forn['nome_empresa'] ?? '';
+$cnpj_empresa = $forn['cnpj_empresa'] ?? '';
 
-// ✅ Valores por status (já pré-calculados)
-$valoresStatus = $valoresStatusPorEmpenho[$idEmpenho] ?? [
-  'Não entregue' => 0.0,
-  'Entregue'     => 0.0,
-  'Capeador'     => 0.0,
-  'Liquidado'    => 0.0
+/* ====================== VALORES POR STATUS ====================== */
+$valoresStatus = [
+  'Não entregue' => 0,
+  'Entregue' => 0,
+  'Capeador' => 0,
+  'Liquidado' => 0
 ];
 
+$stmtStatus = $conexao->prepare("
+  SELECT o.status, SUM(pf.valor_total) AS total
+  FROM fin_ordemforn_pedidos op
+  JOIN fin_ordemforn o ON o.id = op.id_ordemforn
+  JOIN fin_pedidos_forn_itens pf ON pf.id_principal = op.id_pedido
+  WHERE o.id_empenho = ?
+  GROUP BY o.status
+");
+$stmtStatus->bind_param("i", $empenho['id']);
+$stmtStatus->execute();
+$resStatus = $stmtStatus->get_result();
 
-// 🔹 APLICA DESCONTO REAL DO PEDIDO
-$valorNaoEntregue = (float)$valoresStatus['Não entregue'];
-$valorEntregue    = (float)$valoresStatus['Entregue'];
-$valorCapeador    = (float)$valoresStatus['Capeador'];
-$valorLiquidado   = (float)$valoresStatus['Liquidado'];
+while ($row = $resStatus->fetch_assoc()) {
+  $status = strtolower($row['status']);
+  $valor = floatval($row['total']);
 
+  if ($status === 'não entregue') $valoresStatus['Não entregue'] += $valor;
+  elseif ($status === 'entregue') $valoresStatus['Entregue'] += $valor;
+  elseif ($status === 'capeador') $valoresStatus['Capeador'] += $valor;
+  elseif ($status === 'liquidado' || $status === 'pago') $valoresStatus['Liquidado'] += $valor;
+}
 
-// SOMAS GERAIS
-$soma_nao_entregue += $valorNaoEntregue;
-$soma_entregue     += $valorEntregue;
-$soma_capeador     += $valorCapeador;
-$soma_liquidado    += $valorLiquidado;
+$stmtStatus->close();
 
+/* SOMAS GERAIS */
+$soma_nao_entregue += $valoresStatus['Não entregue'];
+$soma_entregue += $valoresStatus['Entregue'];
+$soma_capeador += $valoresStatus['Capeador'];
+$soma_liquidado += $valoresStatus['Liquidado'];
 
-// 🔹 TOTAL UTILIZADO (já com desconto aplicado no cálculo anterior)
-$valorTotalUtilizado = $valorNaoEntregue
-                     + $valorEntregue
-                     + $valorCapeador
-                     + $valorLiquidado;
-
+$valorTotalUtilizado = array_sum($valoresStatus);
 $soma_total_utilizado += $valorTotalUtilizado;
 
-
-// ✅ SALDO REAL
+/* ====================== SALDO REAL ====================== */
 $SaldoReal = $valorEmpenhado2 - $valorTotalUtilizado;
-
 $soma_saldo_real += $SaldoReal;
 
-
-// ===============================
-// SIAFI
-// ===============================
-$nmr_empenho = (string)($empenho['nmr_empenho'] ?? '');
+/* ====================== SIAFI ====================== */
+$nmr_empenho = $empenho['nmr_empenho'];
 $saldoSiafi = null;
 
 $stmtSaldo = $conexao->prepare("SELECT saldo_empenho FROM fin_siafi_corrente WHERE nmr_empenho = ?");
@@ -1103,31 +835,31 @@ if (!$linhaSaldo) {
 }
 
 if ($linhaSaldo) {
-  $saldoSiafi = (float)str_replace(',', '.', str_replace('.', '', (string)$linhaSaldo['saldo_empenho']));
+  $saldoSiafi = floatval(str_replace(',', '.', str_replace('.', '', $linhaSaldo['saldo_empenho'])));
   $soma_saldo_siafi += $saldoSiafi;
 }
 
-
-// ✅ DIFERENÇA
+/* ====================== DIFERENÇA ====================== */
 $diferenca = (!is_null($saldoSiafi)) ? ($saldoSiafi - $SaldoReal) : 0;
 $soma_diferenca += $diferenca;
 ?>
-	
+
+<!-- ====================== CARD DO EMPENHO ====================== -->
 <div class="col-12 col-md-6 col-xl-4">
   <div class="card shadow-sm h-100">
     <div class="card-body">
 
       <h6 class="fw-bold text-primary mb-1">
-        Empenho Nº <?= htmlspecialchars($nmr_empenho) ?>
+        Empenho Nº <?= htmlspecialchars($empenho['nmr_empenho']) ?>
       </h6>
 
       <p class="text-muted mb-2">
-        <strong>OM:</strong> <?= htmlspecialchars($empenho['nome_batalhao'] ?? '') ?>
+        <strong>OM:</strong> <?= htmlspecialchars($empenho['nome_batalhao']) ?>
       </p>
 
       <p class="mb-1"><strong>Empresa:</strong> <?= htmlspecialchars($nome_empresa) ?></p>
       <p class="mb-1"><strong>CNPJ:</strong> <?= htmlspecialchars($cnpj_empresa) ?></p>
-      <p class="mb-1 text-muted"><small>Requisição SALC #<?= htmlspecialchars((string)$id_requisicao) ?></small></p>
+      <p class="mb-1 text-muted"><small>Requisição SALC #<?= htmlspecialchars($id_requisicao) ?></small></p>
 
       <div class="my-3">
         <span class="badge bg-success">
@@ -1139,16 +871,16 @@ $soma_diferenca += $diferenca;
         <p><strong>Total empenhado:</strong> R$ <?= $valorEmpenhado ?></p>
 
         <p><strong>Solicitado e não entregue:</strong> R$
-          <?= number_format((float)$valoresStatus['Não entregue'], 2, ',', '.') ?></p>
+          <?= number_format($valoresStatus['Não entregue'], 2, ',', '.') ?></p>
 
         <p><strong>Entregue e não liquidado:</strong> R$
-          <?= number_format((float)$valoresStatus['Entregue'], 2, ',', '.') ?></p>
+          <?= number_format($valoresStatus['Entregue'], 2, ',', '.') ?></p>
 
         <p><strong>Valor em capeador:</strong> R$
-          <?= number_format((float)$valoresStatus['Capeador'], 2, ',', '.') ?></p>
+          <?= number_format($valoresStatus['Capeador'], 2, ',', '.') ?></p>
 
         <p><strong>Valor liquidado:</strong> R$
-          <?= number_format((float)$valoresStatus['Liquidado'], 2, ',', '.') ?></p>
+          <?= number_format($valoresStatus['Liquidado'], 2, ',', '.') ?></p>
 
         <p><strong>Valor total utilizado:</strong> R$
           <?= number_format($valorTotalUtilizado, 2, ',', '.') ?></p>
@@ -1180,28 +912,28 @@ $soma_diferenca += $diferenca;
 
       <div class="d-flex justify-content-end gap-2">
         <button class="btn btn-sm btn-outline-primary"
-          onclick="verEmpenho(<?= $idEmpenho ?>)"
-          data-bs-toggle="modal"
-          data-bs-target="#modalVerEmpenho">
-          <i class="fas fa-eye me-1"></i> Ver
-        </button>
-
-        <button class="btn btn-sm btn-outline-warning"
-          onclick="editarEmpenho(<?= $id_requisicao ?>)"
-          data-bs-toggle="modal"
-          data-bs-target="#modalGerarEmpenho">
-          <i class="fas fa-edit"></i>
-        </button>
+        onclick="verEmpenho(<?= $empenho['id'] ?>)"
+        data-bs-toggle="modal"
+        data-bs-target="#modalVerEmpenho">
+  <i class="fas fa-eye me-1"></i> Ver
+</button>
+       <button class="btn btn-sm btn-outline-warning"
+        onclick="editarEmpenho(<?= $id_requisicao ?>)"
+        data-bs-toggle="modal"
+        data-bs-target="#modalGerarEmpenho">
+  <i class="fas fa-edit"></i>
+</button>
       </div>
 
     </div>
   </div>
 </div>
 
-<?php endforeach; ?>
+<?php endwhile; ?>
 
 </div>
 
+<!-- ATUALIZA A TABELA DE SOMAS -->
 <script>
 document.getElementById("sum_total_empenhado").innerText     = "<?= number_format($soma_total_empenhado, 2, ',', '.') ?>";
 document.getElementById("sum_nao_entregue").innerText        = "<?= number_format($soma_nao_entregue, 2, ',', '.') ?>";
@@ -1384,8 +1116,6 @@ document.getElementById("sum_diferenca").innerText           = "<?= number_forma
                   <th>Situação</th>
                   <th>Local</th>
                   <th class="text-end">Valor Total</th>
-                  <th class="text-end">Desconto</th>
-                  <th class="text-end">Valor Final</th>
                 </tr>
               </thead>
               <tbody id="ver_pedidos_container"></tbody>
@@ -1393,7 +1123,7 @@ document.getElementById("sum_diferenca").innerText           = "<?= number_forma
               <!-- Rodapé com total -->
               <tfoot>
                 <tr class="table-secondary">
-                  <th colspan="7" class="text-end fw-bold">Total dos Pedidos:</th>
+                  <th colspan="5" class="text-end fw-bold">Total dos Pedidos:</th>
                   <th class="text-end fw-bold" id="ver_total_pedidos">0,00</th>
                 </tr>
               </tfoot>
@@ -1510,183 +1240,6 @@ document.getElementById("sum_diferenca").innerText           = "<?= number_forma
   </div>
 </div>
 
-
-
-<!-- Modal Editar Empenho -->
-<div class="modal fade" id="modalEditarEmpenho" tabindex="-1" aria-labelledby="modalLabelEditarEmpenho" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered modal-lg">
-    <div class="modal-content">
-
-      <div class="modal-header bg-primary text-white">
-        <h5 class="modal-title" id="modalLabelEditarEmpenho">Editar Empenho</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-      </div>
-
-      <div class="modal-body">
-        <form id="form-editar-empenho" method="POST">
-
-          <!-- ID escondido -->
-          <input type="hidden" id="editar-id-requisicao" name="id_requisicao">
-
-          <!-- BATALHÃO -->
-          <div class="mb-3">
-            <label class="form-label fw-semibold">Batalhão</label>
-            <select id="editar-batalhao" name="batalhao" class="form-select">
-              <?php foreach ($oms_visiveis as $id => $nome): ?>
-                <option value="<?= $id ?>"><?= htmlspecialchars($nome) ?></option>
-              <?php endforeach; ?>
-            </select>
-          </div>
-
-          <!-- FORNECEDOR -->
-          <div class="mb-3">
-            <label class="form-label fw-semibold">Fornecedor</label>
-            <select id="editar-fornecedor" name="id_fornecedor" class="form-select" required>
-              <option value="">Selecione um fornecedor</option>
-              <?php
-              $sql_for = $conexao->query("SELECT id, nome_empresa FROM fin_fornecedores ORDER BY nome_empresa ASC");
-              while ($for = $sql_for->fetch_assoc()):
-              ?>
-                <option value="<?= $for['id'] ?>"><?= htmlspecialchars($for['nome_empresa']) ?></option>
-              <?php endwhile; ?>
-            </select>
-          </div>
-
-          <!-- CAMPOS -->
-          <div class="row">
-            <div class="col-md-6 mb-3">
-              <label class="form-label">Requisitante</label>
-              <input type="text" id="editar-requisitante" name="requisitante" class="form-control" required>
-            </div>
-
-            <div class="col-md-6 mb-3">
-              <label class="form-label">Natureza da Despesa</label>
-              <input type="text" id="editar-naturezadespesa" name="naturezadespesa" class="form-control" required>
-            </div>
-          </div>
-
-          <div class="row">
-            <div class="col-md-6 mb-3">
-              <label class="form-label">Item OOG</label>
-              <input type="text" id="editar-item_oog" name="item_oog" class="form-control" required>
-            </div>
-
-            <div class="col-md-6 mb-3">
-              <label class="form-label">Finalidade</label>
-              <input type="text" id="editar-finalidade" name="finalidade" class="form-control" required>
-            </div>
-          </div>
-
-          <div class="row">
-            <div class="col-md-6 mb-3">
-              <label class="form-label">Destinatário</label>
-              <input type="text" id="editar-destinatario" name="destinatario" class="form-control" required>
-            </div>
-
-            <div class="col-md-6 mb-3">
-              <label class="form-label">Nota Crédito</label>
-              <input type="text" id="editar-nota_credito" name="nota_credito" class="form-control" required>
-            </div>
-          </div>
-
-          <div class="row">
-            <div class="col-md-6 mb-3">
-              <label class="form-label">Plano Interno</label>
-              <input type="text" id="editar-plano_interno" name="plano_interno" class="form-control" required>
-            </div>
-
-            <div class="col-md-6 mb-3">
-              <label class="form-label">Necessidade de Contrato?</label>
-              <select id="editar-necessidade_contrato" name="necessidade_contrato" class="form-select">
-                <option value="Sim">Sim</option>
-                <option value="Não">Não</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="row">
-            <div class="col-md-6 mb-3">
-              <label class="form-label">Tipo de Empenho</label>
-              <select id="editar-tipo_empenho" name="tipo_empenho" class="form-select">
-                <option value="Global">Global</option>
-                <option value="Ordinário">Ordinário</option>
-              </select>
-            </div>
-
-            <div class="col-md-6 mb-3">
-              <label class="form-label">Status</label>
-              <select id="editar-status_requisicao" name="status_requisicao" class="form-select">
-                <option value="Em confecção">Em confecção</option>
-                <option value="Entregue na S4">Entregue na S4</option>
-                <option value="Entregue na Fisc Adm">Entregue na Fisc Adm</option>
-                <option value="Entregue na SALC">Entregue na SALC</option>
-                <option value="Empenho gerado">Empenho gerado</option>
-              </select>
-            </div>
-          </div>
-
-          <hr>
-
-          <div class="row">
-            <div class="col-md-4 mb-3">
-              <label class="form-label">Data do Empenho</label>
-              <input type="date" id="editar-data_empenho" name="data_empenho" class="form-control" required>
-            </div>
-
-            <div class="col-md-4 mb-3">
-              <label class="form-label">Número do Empenho</label>
-              <input type="text" id="editar-nmr_empenho" name="nmr_empenho" class="form-control" required>
-            </div>
-
-            <div class="col-md-4 mb-3">
-              <label class="form-label">Ano</label>
-              <input type="text" id="editar-ano" name="ano" class="form-control" required>
-            </div>
-          </div>
-
-          <div class="mb-3">
-            <label class="form-label">Obra</label>
-            <input type="text" id="editar-obra" name="obra" class="form-control" required>
-          </div>
-
-          <div class="mb-3">
-            <label class="form-label">Categoria</label>
-            <input type="text" id="editar-categoria" name="categoria" class="form-control" required>
-          </div>
-
-          <div class="row">
-            <div class="col-md-6 mb-3">
-              <label class="form-label">Local</label>
-              <select id="editar-local" name="local" class="form-select">
-                <option value="Sede">Sede</option>
-                <option value="Destacamento 1">Destacamento 1</option>
-              </select>
-            </div>
-
-            <div class="col-md-6 mb-3">
-              <label class="form-label">Resto a pagar?</label>
-              <select id="editar-resto_pagar" name="resto_pagar" class="form-select">
-                <option value="Sim">Sim</option>
-                <option value="Não">Não</option>
-              </select>
-            </div>
-          </div>
-
-          <!-- NOVO CAMPO -->
-          <div class="mb-3">
-            <label class="form-label">Valor Total Empenhado</label>
-            <input type="text" id="editar-valor_empenhado" name="valor_empenhado" class="form-control" required>
-          </div>
-
-          <button type="submit" class="btn btn-primary w-100">
-            <i class="fas fa-save me-1"></i> Atualizar Empenho
-          </button>
-
-        </form>
-      </div>
-    </div>
-  </div>
-</div>
 
 <!-- Modal de Importação de Empenhos -->
 <div class="modal fade" id="modalImportarEmpenhos" tabindex="-1">

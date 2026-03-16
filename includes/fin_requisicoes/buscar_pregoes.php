@@ -1,5 +1,5 @@
 <?php
-include 'conexao.php';
+include '../../config/conexao.php';
 header('Content-Type: application/json');
 
 $query = "SELECT id, nome FROM fin_pregao ORDER BY nome ASC";

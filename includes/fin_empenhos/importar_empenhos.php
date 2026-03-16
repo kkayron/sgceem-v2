@@ -220,7 +220,7 @@ foreach ($rows as $i => $linha) {
     }
 
     $status_requisicao = "Em confecção";
-    $empenho_gerado = 1;
+    $empenho_gerado = "sim";
 
     $stmtReq->bind_param(
         "iissssssssssissssssdss",

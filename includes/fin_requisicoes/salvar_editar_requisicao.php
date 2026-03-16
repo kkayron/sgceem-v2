@@ -1,220 +1,201 @@
 <?php
-// includes/fin_requisicoes/salvar_editar_empenho.php
 session_start();
 include '../../conexao/config.php';
 include '../funcoes/log.php';
 
-// -----------------------------
-// Função auxiliar buscar usuário
-// -----------------------------
-function buscarResponsavel($conexao, $funcao) {
-    $sql = "SELECT nomecompleto, postograd FROM usuarios WHERE funcao = ? AND status = 'sim' LIMIT 1";
-    $stmt = $conexao->prepare($sql);
-    if (!$stmt) return "Erro ao preparar: " . $conexao->error;
+$usuarioLogado = $_SESSION['usuario_id'] ?? 0;
 
-    $stmt->bind_param("s", $funcao);
-    $stmt->execute();
-    $res = $stmt->get_result();
-    if ($u = $res->fetch_assoc()) return $u['nomecompleto'] . " - " . $u['postograd'];
+// ===============================
+// Receber dados
+// ===============================
 
-    return "Não há usuário cadastrado com a função";
+$id = intval($_POST['id'] ?? 0);
+
+if ($id <= 0) {
+    echo "Requisição inválida";
+    exit;
 }
 
-// -----------------------------
-// Responsáveis automáticos
-// -----------------------------
-$cmt_ceem       = buscarResponsavel($conexao, '8');
-$ch_financeiro  = buscarResponsavel($conexao, '10');
-$ch_controle    = buscarResponsavel($conexao, '9');
-$ch_s4          = buscarResponsavel($conexao, '19');
-$cmt_batalhao   = buscarResponsavel($conexao, '7');
-
-$usuarioLogado  = $_SESSION['usuario_id'] ?? 0;
-
-// -----------------------------
-// Ler dados enviados pelo formulário
-// -----------------------------
-$id_requisicao        = intval($_POST['id_requisicao'] ?? 0);
-$batalhao             = intval($_POST['batalhao'] ?? 0);
-$id_fornecedor        = intval($_POST['id_fornecedor'] ?? 0);
-$requisitante         = $_POST['requisitante'] ?? '';
-$destinatario         = $_POST['destinatario'] ?? '';
-$nota_credito         = $_POST['nota_credito'] ?? '';
-$plano_interno        = $_POST['plano_interno'] ?? '';
-$naturezadespesa       = $_POST['naturezadespesa'] ?? '';
-$item_oog             = $_POST['item_oog'] ?? '';
-$finalidade           = $_POST['finalidade'] ?? '';
-$tipo_empenho         = $_POST['tipo_empenho'] ?? '';
+$requisitante = $_POST['requisitante'] ?? '';
+$natureza_despesa = $_POST['natureza_despesa'] ?? '';
+$item_oog = $_POST['item_oog'] ?? '';
+$finalidade = $_POST['finalidade'] ?? '';
+$destinatario = $_POST['destinatario'] ?? '';
+$nota_credito = $_POST['nota_credito'] ?? '';
+$plano_interno = $_POST['plano_interno'] ?? '';
 $necessidade_contrato = $_POST['necessidade_contrato'] ?? '';
-$status_requisicao    = $_POST['status_requisicao'] ?? '';
+$tipo_empenho = $_POST['tipo_empenho'] ?? '';
+$status_requisicao = $_POST['status_requisicao'] ?? '';
+$id_pregao = intval($_POST['id_pregao'] ?? 0);
 
-// Dados do empenho (tabela fin_empenhos)
-$data_empenho   = $_POST['data_empenho'] ?? null;
-$nmr_empenho     = $_POST['nmr_empenho'] ?? '';
-$obra           = $_POST['obra'] ?? '';
-$ano            = $_POST['ano'] ?? '';
-$categoria       = $_POST['categoria'] ?? '';
-$local          = $_POST['local'] ?? '';
-$resto_pagar    = $_POST['resto_pagar'] ?? 'Não';
+$itens = $_POST['itens'] ?? [];
 
-// Valor empenhado (formato BR → float)
-$valor_raw       = $_POST['valor_empenhado'] ?? '0';
-$valor_empenhado = floatval(str_replace(['.', ','], ['', '.'], $valor_raw));
 
-if ($id_requisicao <= 0) {
-    echo "Erro: Requisição inválida";
-    exit;
-}
+// ===============================
+// Atualizar requisição
+// ===============================
 
-// ==================================================
-// 1) Atualizar fin_requisicao
-// ==================================================
-$sql1 = "UPDATE fin_requisicao SET
-    batalhao = ?,
-    id_fornecedor = ?,
-    requisitante = ?,
-    destinatario = ?,
-    necessidade_contrato = ?,
-    finalidade = ?,
-    item_oog = ?,
-    tipo_empenho = ?,
-    nota_credito = ?,
-    plano_interno = ?,
-    natureza_despesa = ?,
-    status_requisicao = ?,
-    nmr_empenho = ?,
-    cmt_ceem = ?,
-    ch_financeiro = ?,
-    ch_controle = ?,
-    ch_s4 = ?,
-    cmt_batalhao = ?,
-    valor_empenhado = ?
-WHERE id = ?";
+$sql = "UPDATE fin_requisicao SET
+requisitante=?,
+natureza_despesa=?,
+item_oog=?,
+finalidade=?,
+destinatario=?,
+nota_credito=?,
+plano_interno=?,
+necessidade_contrato=?,
+tipo_empenho=?,
+status_requisicao=?,
+id_pregao=?
+WHERE id=?";
 
-$stmt1 = $conexao->prepare($sql1);
-if (!$stmt1) {
-    echo "Erro ao preparar UPDATE fin_requisicao: " . $conexao->error;
-    exit;
-}
+$stmt = $conexao->prepare($sql);
 
-$stmt1->bind_param(
-    "iissssssssssssssssdi",
-    $batalhao,
-    $id_fornecedor,
-    $requisitante,
-    $destinatario,
-    $necessidade_contrato,
-    $finalidade,
-    $item_oog,
-    $tipo_empenho,
-    $nota_credito,
-    $plano_interno,
-    $naturezadespesa,
-    $status_requisicao,
-    $nmr_empenho,
-    $cmt_ceem,
-    $ch_financeiro,
-    $ch_controle,
-    $ch_s4,
-    $cmt_batalhao,
-    $valor_empenhado,
-    $id_requisicao
+$stmt->bind_param(
+"ssssssssssii",
+$requisitante,
+$natureza_despesa,
+$item_oog,
+$finalidade,
+$destinatario,
+$nota_credito,
+$plano_interno,
+$necessidade_contrato,
+$tipo_empenho,
+$status_requisicao,
+$id_pregao,
+$id
 );
 
-if (!$stmt1->execute()) {
-    echo "Erro ao executar UPDATE fin_requisicao: " . $stmt1->error;
+if (!$stmt->execute()) {
+    echo "Erro ao atualizar requisição";
     exit;
 }
-$stmt1->close();
 
-// ==================================================
-// 2) Atualizar fin_empenhos (ou inserir caso não exista)
-// ==================================================
+$stmt->close();
 
-$sqlCheck = "SELECT id FROM fin_empenhos WHERE id_requisicao = ? LIMIT 1";
-$stmtC = $conexao->prepare($sqlCheck);
-$stmtC->bind_param("i", $id_requisicao);
-$stmtC->execute();
-$resC = $stmtC->get_result();
-$temEmp = $resC->fetch_assoc();
-$stmtC->close();
 
-if ($temEmp) {
-    // UPDATE
-    $sql2 = "UPDATE fin_empenhos SET
-        data_empenho = ?,
-        nmr_empenho = ?,
-        obra = ?,
-        ano = ?,
-        categoria = ?,
-        local = ?,
-        resto_pagar = ?
-    WHERE id_requisicao = ?";
+// ===============================
+// Apagar itens antigos
+// ===============================
 
-    $stmt2 = $conexao->prepare($sql2);
-    if (!$stmt2) {
-        echo "Erro ao preparar UPDATE fin_empenhos: " . $conexao->error;
-        exit;
+$sqlDelete = "DELETE FROM fin_requisicao_itens WHERE id_requisicao=?";
+$stmtDelete = $conexao->prepare($sqlDelete);
+$stmtDelete->bind_param("i", $id);
+$stmtDelete->execute();
+$stmtDelete->close();
+
+
+// ===============================
+// Inserir itens novamente
+// ===============================
+
+if (!empty($itens)) {
+
+    $sqlInsert = "INSERT INTO fin_requisicao_itens
+    (id_requisicao, id_item, quant_saida_item)
+    VALUES (?,?,?)";
+
+    $stmtInsert = $conexao->prepare($sqlInsert);
+
+    foreach ($itens as $item) {
+
+        $id_item = intval($item['id_item']);
+        $quant = floatval($item['quant_saida_item']);
+
+        $stmtInsert->bind_param(
+            "iid",
+            $id,
+            $id_item,
+            $quant
+        );
+
+        $stmtInsert->execute();
     }
 
-    $stmt2->bind_param(
-        "sssssssi",
-        $data_empenho,
-        $nmr_empenho,
-        $obra,
-        $ano,
-        $categoria,
-        $local,
-        $resto_pagar,
-        $id_requisicao
-    );
-
-    if (!$stmt2->execute()) {
-        echo "Erro ao atualizar fin_empenhos: " . $stmt2->error;
-        exit;
-    }
-    $stmt2->close();
-
-} else {
-    // INSERT
-    $sql2 = "INSERT INTO fin_empenhos (
-        id_requisicao, data_empenho, nmr_empenho, obra, ano, categoria, local, resto_pagar
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
-
-    $stmt2 = $conexao->prepare($sql2);
-    if (!$stmt2) {
-        echo "Erro ao preparar INSERT fin_empenhos: " . $conexao->error;
-        exit;
-    }
-
-    $stmt2->bind_param(
-        "isssssss",
-        $id_requisicao,
-        $data_empenho,
-        $nmr_empenho,
-        $obra,
-        $ano,
-        $categoria,
-        $local,
-        $resto_pagar
-    );
-
-    if (!$stmt2->execute()) {
-        echo "Erro ao inserir fin_empenhos: " . $stmt2->error;
-        exit;
-    }
-    $stmt2->close();
+    $stmtInsert->close();
 }
 
-// ==================================================
-// 3) Registrar LOG
-// ==================================================
-$descricaoLog = "Empenho atualizado. ID_REQUISICAO: $id_requisicao | Fornecedor: $id_fornecedor | Valor: $valor_empenhado";
-registrar_log($conexao, $usuarioLogado, "Editar Empenho", $descricaoLog, $id_requisicao);
 
-// ==================================================
-// 4) Retorno
-// ==================================================
+// ===============================
+// Recalcular valor empenhado
+// ===============================
+
+$valor_empenhado = 0;
+$fornecedor_principal = null;
+
+if (!empty($itens)) {
+
+    foreach ($itens as $item) {
+
+        $id_item = intval($item['id_item']);
+        $quant = floatval($item['quant_saida_item']);
+
+        $sqlItem = "SELECT valor_unt, id_fornecedor
+                    FROM fin_pregao_itens
+                    WHERE id=?";
+
+        $stmtItem = $conexao->prepare($sqlItem);
+        $stmtItem->bind_param("i", $id_item);
+        $stmtItem->execute();
+
+        $res = $stmtItem->get_result()->fetch_assoc();
+        $stmtItem->close();
+
+        if (!$res) {
+            echo "Item inválido";
+            exit;
+        }
+
+        $valor_empenhado += $quant * $res['valor_unt'];
+
+        if ($fornecedor_principal === null) {
+            $fornecedor_principal = $res['id_fornecedor'];
+        } elseif ($fornecedor_principal != $res['id_fornecedor']) {
+            echo "Itens devem ser do mesmo fornecedor";
+            exit;
+        }
+
+    }
+
+}
+
+
+// ===============================
+// Atualizar valor_empenhado
+// ===============================
+
+$sqlValor = "UPDATE fin_requisicao
+SET valor_empenhado=?, id_fornecedor=?
+WHERE id=?";
+
+$stmtValor = $conexao->prepare($sqlValor);
+
+$stmtValor->bind_param(
+"dii",
+$valor_empenhado,
+$fornecedor_principal,
+$id
+);
+
+$stmtValor->execute();
+$stmtValor->close();
+
+
+// ===============================
+// LOG
+// ===============================
+
+$descricao = "Requisição editada. ID: $id | Novo valor empenhado: $valor_empenhado";
+
+registrar_log($conexao, $usuarioLogado, "Editar Requisição", $descricao, $id);
+
+
+// ===============================
+// RETORNO
+// ===============================
+
 echo "ok";
 exit;
+
 ?>
