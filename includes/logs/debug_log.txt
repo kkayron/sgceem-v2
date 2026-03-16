@@ -1,0 +1,8 @@
+Array
+(
+    [pagina] => 1
+    [data] => 
+    [usuario] => Capitão Lacôrte
+    [acao] => 
+    [palavra] => 
+)

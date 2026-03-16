@@ -1,0 +1,30 @@
+# Dependências
+/vendor/
+node_modules/
+/uploads/
+/conexao/
+/imagens/
+/imgnovas/
+/cron/
+/dev/
+
+# Arquivos de ambiente
+.env
+config.php
+valida_login.php
+
+# Backups
+backup/
+*.sql
+*.zip
+
+# Logs
+*.log
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
