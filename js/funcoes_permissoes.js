@@ -1,53 +1,73 @@
 // ===================== LISTAGEM DE FUNÇÕES =====================
 window.inicializarFuncoesUsuarios = function() {
     
-    // Delegação dinâmica (funciona sempre)
-  document.addEventListener("change", async function (e) {
+// Delegação dinâmica (funciona sempre)
+document.addEventListener("change", async function (e) {
 
-    const chk = e.target;
+  const chk = e.target;
 
-    if (!chk.classList.contains("chk-permissao-pagina")) return;
+  if (!chk.classList.contains("chk-permissao-pagina")) return;
 
-    const funcaoId = chk.dataset.funcao;
-    const paginaId = chk.dataset.pagina;
-    const campo = chk.dataset.campo;
-    const permitido = chk.checked ? 1 : 0;
+  const funcaoId = chk.dataset.funcao;
+  const paginaId = chk.dataset.pagina;
+  const campo = chk.dataset.campo;
+  const permitido = chk.checked ? 1 : 0;
 
-    chk.disabled = true;
+  chk.disabled = true;
 
-    try {
-      const res = await fetch("includes/funcoes_militares/atualizar_permissao.php", {
-        method: "POST",
-        body: new URLSearchParams({
-          funcao_id: funcaoId,
-          pagina_id: paginaId,
-          campo: campo,
-          permitido: permitido
-        })
+  try {
+    const res = await fetch("includes/funcoes_militares/atualizar_permissao.php", {
+      method: "POST",
+      body: new URLSearchParams({
+        funcao_id: funcaoId,
+        pagina_id: paginaId,
+        campo: campo,
+        permitido: permitido
+      })
+    });
+
+    const data = await res.json();
+
+    if (data.sucesso) {
+
+      // Toast pequeno igual ao modelo
+      Swal.fire({
+        toast: true,
+        position: 'top-end',
+        icon: 'success',
+        title: data.mensagem || 'Permissão atualizada',
+        showConfirmButton: false,
+        timer: 1200
       });
 
-      const json = await res.json();
+    } else {
 
-      if (!json.sucesso) {
-        Swal.fire("Erro!", json.mensagem, "error");
-        chk.checked = !chk.checked;
-      } else {
-        Swal.fire({
-          icon: "success",
-          title: "Atualizado!",
-          text: json.mensagem,
-          timer: 1200,
-          showConfirmButton: false
-        });
-      }
-
-    } catch (err) {
-      Swal.fire("Erro!", "Falha na comunicação.", "error");
+      // Reverte o checkbox
       chk.checked = !chk.checked;
+
+      Swal.fire({
+        icon: 'error',
+        title: 'Erro',
+        text: data.mensagem || 'Erro ao atualizar permissão.'
+      });
+
     }
 
-    chk.disabled = false;
-  });
+  } catch (err) {
+
+    chk.checked = !chk.checked;
+
+    Swal.fire({
+      icon: 'error',
+      title: 'Erro',
+      text: 'Falha na comunicação.'
+    });
+
+  }
+
+  chk.disabled = false;
+
+});
 
   // Animação das setas
   document.querySelectorAll("[data-bs-toggle='collapse']").forEach(btn => {
