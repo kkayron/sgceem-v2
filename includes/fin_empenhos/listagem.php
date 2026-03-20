@@ -1103,7 +1103,7 @@ if (!$linhaSaldo) {
 }
 
 if ($linhaSaldo) {
-  $saldoSiafi = (float)str_replace(',', '.', str_replace('.', '', (string)$linhaSaldo['saldo_empenho']));
+  $saldoSiafi = (float)$linhaSaldo['saldo_empenho'];
   $soma_saldo_siafi += $saldoSiafi;
 }
 

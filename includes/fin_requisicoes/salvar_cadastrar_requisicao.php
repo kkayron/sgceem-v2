@@ -25,7 +25,6 @@ function buscarResponsavel($conexao, $funcao)
     return "Não há usuário cadastrado";
 }
 
-
 $cmt_ceem = buscarResponsavel($conexao,'8');
 $ch_financeiro = buscarResponsavel($conexao,'10');
 $ch_controle = buscarResponsavel($conexao,'9');
@@ -33,7 +32,6 @@ $ch_s4 = buscarResponsavel($conexao,'19');
 $cmt_batalhao = buscarResponsavel($conexao,'7');
 
 $usuarioLogado = $_SESSION['usuario_id'] ?? 0;
-
 
 $batalhao = $_POST['batalhao'] ?? '';
 $requisitante = $_POST['requisitante'] ?? '';
@@ -65,7 +63,11 @@ foreach($itens as $item){
     $id_item = intval($item['id_item']);
     $quant = floatval($item['quant_saida_item']);
 
-    $sql = "SELECT valor_unt,id_fornecedor
+    // ===============================
+    // BUSCAR ITEM DO PREGÃO
+    // ===============================
+
+    $sql = "SELECT valor_unt, id_fornecedor, saldo_item
             FROM fin_pregao_itens
             WHERE id=?";
 
@@ -79,7 +81,47 @@ foreach($itens as $item){
         exit;
     }
 
+    // ===============================
+    // CALCULAR SALDO JÁ REQUISITADO
+    // ===============================
+
+    $sqlSaldo = "
+        SELECT COALESCE(SUM(quant_saida_item),0) AS total_requisitado
+        FROM fin_requisicao_itens
+        WHERE id_item = ?
+    ";
+
+    $stmtSaldo = $conexao->prepare($sqlSaldo);
+    $stmtSaldo->bind_param("i",$id_item);
+    $stmtSaldo->execute();
+    $resSaldo = $stmtSaldo->get_result()->fetch_assoc();
+
+    $total_requisitado = $resSaldo['total_requisitado'];
+
+    $saldo_disponivel = $res['saldo_item'] - $total_requisitado;
+
+    // ===============================
+    // VERIFICAR ESTOQUE
+    // ===============================
+
+    if($quant > $saldo_disponivel){
+
+        echo "Saldo insuficiente para o item ID $id_item. 
+        Disponível: $saldo_disponivel | Solicitado: $quant";
+
+        exit;
+
+    }
+
+    // ===============================
+    // CALCULAR VALOR DO EMPENHO
+    // ===============================
+
     $valor_empenhado += $quant * $res['valor_unt'];
+
+    // ===============================
+    // VALIDAR FORNECEDOR
+    // ===============================
 
     if($fornecedor_principal === null){
         $fornecedor_principal = $res['id_fornecedor'];
@@ -89,7 +131,6 @@ foreach($itens as $item){
     }
 
 }
-
 
 $sql = "INSERT INTO fin_requisicao
 (
@@ -147,6 +188,9 @@ $stmt->execute();
 
 $id_requisicao = $conexao->insert_id;
 
+// ===============================
+// INSERIR ITENS
+// ===============================
 
 foreach($itens as $item){
 
@@ -164,6 +208,9 @@ $stmtI->execute();
 
 }
 
+// ===============================
+// LOG
+// ===============================
 
 $desc = "Requisição $id_requisicao cadastrada. Valor empenhado: $valor_empenhado";
 

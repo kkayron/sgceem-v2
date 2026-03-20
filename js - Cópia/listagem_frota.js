@@ -330,78 +330,54 @@ if (ods.length === 0) {
 const formEditarFrota = document.getElementById('form-editar-frota');
 
 if (formEditarFrota) {
-
   formEditarFrota.addEventListener('submit', function(e) {
-
-    e.preventDefault();
+    e.preventDefault(); // evita atualização da página
 
     const formData = new FormData(formEditarFrota);
 
     fetch('includes/frota/editar_frota.php', {
       method: 'POST',
-      body: formData,
-      headers: {
-        'X-Requested-With': 'XMLHttpRequest'
-      }
+      body: formData
     })
+    .then(res => res.text())
+    .then(retorno => {
+      retorno = retorno.trim();
 
-    .then(res => {
-
-      if (!res.ok) {
-        throw new Error("Erro HTTP " + res.status);
-      }
-
-      return res.json();
-    })
-
-    .then(data => {
-
-      if (data.status === 'ok') {
-
+      if (retorno === 'ok') {
         // Fechar modal
         const modalEl = document.getElementById('modalEditarFrota');
         const modal = bootstrap.Modal.getInstance(modalEl);
+        modal.hide();
 
-        if (modal) modal.hide();
-
-        // SweetAlert sucesso
+        // Mensagem de sucesso SweetAlert
         Swal.fire({
           icon: 'success',
           title: 'Alterações salvas!',
-          text: data.mensagem || '',
           showConfirmButton: false,
           timer: 2000
         });
 
-        // Recarregar listagem
+        // Recarregar listagem via AJAX (se tiver função)
         if (typeof carregarPagina === "function") {
           carregarPagina('includes/frota/listagem.php');
         }
 
       } else {
-
         Swal.fire({
           icon: 'error',
           title: 'Erro ao editar',
-          text: data.mensagem || 'Erro desconhecido.'
+          text: retorno
         });
-
       }
-
     })
-
     .catch(err => {
-
       Swal.fire({
         icon: 'error',
         title: 'Erro ao enviar',
         text: err.message
       });
-
     });
-
   });
-
 }
 
 
@@ -553,23 +529,10 @@ window.editarFrota = function(id) {
   };
 
 // Exportar frota para Excel - apenas uma planilha por clique
-const btnExportar = document.getElementById('btnExportarExcelFrota');
-
-if (btnExportar) {
-
-  btnExportar.addEventListener('click', function(e) {
-
-    e.preventDefault();
-
-    // mantém filtros da página
-    const filtros = window.location.search;
-
-    window.location.href =
-      'includes/frota/exportar_frota_excel.php' + filtros;
-
-  });
-
-}
+document.getElementById('btnExportarExcelFrota').addEventListener('click', function(e) {
+    e.preventDefault(); // previne comportamento padrão
+    window.location.href = 'includes/frota/exportar_frota_excel.php';
+});
       
       
 (function(){

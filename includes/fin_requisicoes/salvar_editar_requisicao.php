@@ -30,6 +30,66 @@ $id_pregao = intval($_POST['id_pregao'] ?? 0);
 
 $itens = $_POST['itens'] ?? [];
 
+if(empty($itens)){
+    echo "Adicione itens à requisição";
+    exit;
+}
+
+
+// ===============================
+// VALIDAR SALDO DOS ITENS
+// ===============================
+
+foreach($itens as $item){
+
+    $id_item = intval($item['id_item']);
+    $quant = floatval($item['quant_saida_item']);
+
+    // Dados do item
+    $sqlItem = "SELECT saldo_item
+                FROM fin_pregao_itens
+                WHERE id=?";
+
+    $stmtItem = $conexao->prepare($sqlItem);
+    $stmtItem->bind_param("i",$id_item);
+    $stmtItem->execute();
+    $resItem = $stmtItem->get_result()->fetch_assoc();
+    $stmtItem->close();
+
+    if(!$resItem){
+        echo "Item inválido";
+        exit;
+    }
+
+    // Soma das outras requisições
+    $sqlSaldo = "
+        SELECT COALESCE(SUM(quant_saida_item),0) AS total_requisitado
+        FROM fin_requisicao_itens
+        WHERE id_item = ?
+        AND id_requisicao <> ?
+    ";
+
+    $stmtSaldo = $conexao->prepare($sqlSaldo);
+    $stmtSaldo->bind_param("ii",$id_item,$id);
+    $stmtSaldo->execute();
+    $resSaldo = $stmtSaldo->get_result()->fetch_assoc();
+    $stmtSaldo->close();
+
+    $total_requisitado = $resSaldo['total_requisitado'];
+
+    $saldo_disponivel = $resItem['saldo_item'] - $total_requisitado;
+
+    if($quant > $saldo_disponivel){
+
+        echo "Saldo insuficiente para o item ID $id_item.
+        Disponível: $saldo_disponivel | Solicitado: $quant";
+
+        exit;
+
+    }
+
+}
+
 
 // ===============================
 // Atualizar requisição
@@ -90,31 +150,28 @@ $stmtDelete->close();
 // Inserir itens novamente
 // ===============================
 
-if (!empty($itens)) {
+$sqlInsert = "INSERT INTO fin_requisicao_itens
+(id_requisicao, id_item, quant_saida_item)
+VALUES (?,?,?)";
 
-    $sqlInsert = "INSERT INTO fin_requisicao_itens
-    (id_requisicao, id_item, quant_saida_item)
-    VALUES (?,?,?)";
+$stmtInsert = $conexao->prepare($sqlInsert);
 
-    $stmtInsert = $conexao->prepare($sqlInsert);
+foreach ($itens as $item) {
 
-    foreach ($itens as $item) {
+    $id_item = intval($item['id_item']);
+    $quant = floatval($item['quant_saida_item']);
 
-        $id_item = intval($item['id_item']);
-        $quant = floatval($item['quant_saida_item']);
+    $stmtInsert->bind_param(
+        "iid",
+        $id,
+        $id_item,
+        $quant
+    );
 
-        $stmtInsert->bind_param(
-            "iid",
-            $id,
-            $id_item,
-            $quant
-        );
-
-        $stmtInsert->execute();
-    }
-
-    $stmtInsert->close();
+    $stmtInsert->execute();
 }
+
+$stmtInsert->close();
 
 
 // ===============================
@@ -124,38 +181,34 @@ if (!empty($itens)) {
 $valor_empenhado = 0;
 $fornecedor_principal = null;
 
-if (!empty($itens)) {
+foreach ($itens as $item) {
 
-    foreach ($itens as $item) {
+    $id_item = intval($item['id_item']);
+    $quant = floatval($item['quant_saida_item']);
 
-        $id_item = intval($item['id_item']);
-        $quant = floatval($item['quant_saida_item']);
+    $sqlItem = "SELECT valor_unt, id_fornecedor
+                FROM fin_pregao_itens
+                WHERE id=?";
 
-        $sqlItem = "SELECT valor_unt, id_fornecedor
-                    FROM fin_pregao_itens
-                    WHERE id=?";
+    $stmtItem = $conexao->prepare($sqlItem);
+    $stmtItem->bind_param("i", $id_item);
+    $stmtItem->execute();
 
-        $stmtItem = $conexao->prepare($sqlItem);
-        $stmtItem->bind_param("i", $id_item);
-        $stmtItem->execute();
+    $res = $stmtItem->get_result()->fetch_assoc();
+    $stmtItem->close();
 
-        $res = $stmtItem->get_result()->fetch_assoc();
-        $stmtItem->close();
+    if (!$res) {
+        echo "Item inválido";
+        exit;
+    }
 
-        if (!$res) {
-            echo "Item inválido";
-            exit;
-        }
+    $valor_empenhado += $quant * $res['valor_unt'];
 
-        $valor_empenhado += $quant * $res['valor_unt'];
-
-        if ($fornecedor_principal === null) {
-            $fornecedor_principal = $res['id_fornecedor'];
-        } elseif ($fornecedor_principal != $res['id_fornecedor']) {
-            echo "Itens devem ser do mesmo fornecedor";
-            exit;
-        }
-
+    if ($fornecedor_principal === null) {
+        $fornecedor_principal = $res['id_fornecedor'];
+    } elseif ($fornecedor_principal != $res['id_fornecedor']) {
+        echo "Itens devem ser do mesmo fornecedor";
+        exit;
     }
 
 }

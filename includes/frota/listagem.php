@@ -1,4 +1,15 @@
 <?php
+// ========================================
+// 🔒 Bloqueia acesso direto à página
+// ========================================
+if (
+    !isset($_SERVER['HTTP_X_REQUESTED_WITH']) ||
+    strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) !== 'xmlhttprequest'
+) {
+    http_response_code(403);
+    die('Acesso direto não permitido.');
+}
+
 header('Content-Type: text/html; charset=utf-8');
 session_start();
 include_once('../../conexao/config.php');
@@ -7,9 +18,9 @@ include_once('../../conexao/config.php');
 $pagina_id = intval(2); // <--- ajuste conforme o ID da página de cadastro de Vtr/Eqp no banco
 
 // Verifica login e permissão de acesso
-if (!isset($_SESSION['usuario_id'])) {
-    header("Location: login.php");
-    exit;
+if (!isset($_SESSION['usuario_id']) || empty($_SESSION['usuario'])) {
+    http_response_code(401);
+    exit('Sessão inválida.');
 }
 
 if (empty($_SESSION['permissoes'][$pagina_id]['pode_acessar'])) {

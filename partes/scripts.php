@@ -148,28 +148,43 @@
         });
       });
     </script>
-      
+
 <!-- Script GERAL -->
 <script src="js/main.js"></script>
+<script src="js/global.js"></script>
+
+<!-- Script USUÁRIOS -->
+<script src="js/usuarios.js"></script> 
+
+<!-- Script FROTA -->
 <script src="js/atualiza_odometro.js"></script>
 <script src="js/cadastro_vtr.js"></script>
 <script src="js/listagem_frota.js"></script>
-<script src="js/usuarios.js"></script>
-<script src="js/funcoes_permissoes.js?v=<?= time(); ?>"></script>
+
+<!-- Script SEC CTRL -->
 <script src="js/ordem_servico.js?v=<?= time(); ?>"></script>
+
+<!-- Script FINANCEIRO -->
 <script src="js/fin_fornecedores.js?v=<?= time(); ?>"></script>
 <script src="js/financeiro/pregoes_listagem.js?v=<?= time(); ?>"></script>
 <script src="js/financeiro/requisicao.js?v=<?= time(); ?>"></script>
 <script src="js/financeiro/pedidos_forn.js?v=<?= time(); ?>"></script>
 <script src="js/financeiro/conrazao_corrente.js?v=<?= time(); ?>"></script>
 <script src="js/financeiro/ordemfornec.js?v=<?= time(); ?>"></script>
-<script src="js/configuracoes.js?v=<?= time(); ?>"></script>
-<script src="js/sta/fichas.js?v=<?= time(); ?>" defer></script>
 <script src="js/financeiro/empenhos.js?v=<?= time(); ?>"></script>
-<script src="js/oms.js?v=<?= time(); ?>"></script>
+
+<!-- Script STA -->
+<script src="js/sta/fichas.js?v=<?= time(); ?>" defer></script>
+
+<!-- Script ALMOX -->
 <script src="js/almox/pedidos.js?v=<?= time(); ?>"></script>
 <script src="js/almox/produtos.js?v=<?= time(); ?>"></script>
-<script src="js/global.js"></script>
+
+<!-- Script CONFIGURAÇÕES -->
+<script src="js/funcoes_permissoes.js?v=<?= time(); ?>"></script>
+<script src="js/configuracoes.js?v=<?= time(); ?>"></script>
+<script src="js/oms.js?v=<?= time(); ?>"></script>
+
       <script>
 // VER PERFIL NA PÁGINA USUÁRIOS
 let idUsuarioAtual = null;

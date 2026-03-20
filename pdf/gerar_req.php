@@ -194,7 +194,7 @@ $html = "<!DOCTYPE html>
 <br>
 <p>Do: {$requisitante}</p>
 <p>Ao: {$destinatario}</p>
-<p>Data: Boa Vista – RR {$datareq}</p>
+<p>Data: {$datareq}</p>
 <p>
 1- Solicitação de realização de Nota de Empenho</p>
 <p>2- Nos termos contidos nos Art 13 das IG 12-02, aprovadas pela Port Min Nº 305, de 22MA95, solicito-vos providências no sentido de aprovar a contratação da empresa para o fornecimento do material</p>

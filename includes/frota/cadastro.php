@@ -7,9 +7,9 @@ include_once('../../conexao/config.php');
 $pagina_id = intval(2); // <--- ajuste conforme o ID da página de cadastro de Vtr/Eqp no banco
 
 // Verifica login e permissão de acesso
-if (!isset($_SESSION['usuario_id'])) {
-    header("Location: login.php");
-    exit;
+if (!isset($_SESSION['usuario_id']) || empty($_SESSION['usuario'])) {
+    http_response_code(401);
+    exit('Sessão inválida.');
 }
 
 if (empty($_SESSION['permissoes'][$pagina_id]['pode_acessar'])) {

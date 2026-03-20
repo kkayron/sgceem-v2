@@ -1,78 +1,54 @@
 // JavaScript Document
 function inicializarCadastroVtrEqp() {// FORM: Cadastrar frota
- const formCadastrarFrota = document.getElementById('formCadastrarFrota');
-
-if (formCadastrarFrota) {
-
-  formCadastrarFrota.addEventListener('submit', function (e) {
-
-    e.preventDefault();
-
-    const formData = new FormData(formCadastrarFrota);
-
-    fetch('includes/frota/processar_cadastro_frota.php', {
-      method: 'POST',
-      body: formData,
-      headers: {
-        'X-Requested-With': 'XMLHttpRequest'
-      }
-    })
-
-    .then(res => res.json())
-
-    .then(data => {
-
-      if (data.status === 'ok') {
-
-        swal({
-          title: "Sucesso!",
-          text: data.mensagem || "Frota cadastrada com sucesso!",
-          icon: "success",
-          button: {
-            text: "OK",
-            className: "btn btn-success"
-          }
-
-        }).then(() => {
-
-          carregarPagina('includes/frota/listagem.php');
-          fecharModalAberto();
-
-        });
-
-      } else {
-
+  const formCadastrarFrota = document.getElementById('formCadastrarFrota');
+  if (formCadastrarFrota) {
+    formCadastrarFrota.addEventListener('submit', function (e) {
+      e.preventDefault();
+      const formData = new FormData(formCadastrarFrota);
+      fetch('includes/frota/processar_cadastro_frota.php', {
+        method: 'POST',
+        body: formData
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === 'ok') {
+          swal({
+            title: "Sucesso!",
+            text: data.mensagem || "Frota cadastrada com sucesso!",
+            icon: "success",
+            button: {
+              text: "OK",
+              className: "btn btn-success"
+            }
+          }).then(() => {
+            carregarPagina('includes/frota/listagem.php');
+            fecharModalAberto();
+          });
+        } else {
+          swal({
+            title: "Erro!",
+            text: data.mensagem || "Erro ao cadastrar frota.",
+            icon: "error",
+            button: {
+              text: "Fechar",
+              className: "btn btn-danger"
+            }
+          });
+        }
+      })
+      .catch(err => {
         swal({
           title: "Erro!",
-          text: data.mensagem || "Erro ao cadastrar frota.",
+          text: "Erro de rede: " + err.message,
           icon: "error",
           button: {
             text: "Fechar",
             className: "btn btn-danger"
           }
         });
-
-      }
-
-    })
-
-    .catch(err => {
-
-      swal({
-        title: "Erro!",
-        text: "Erro de rede: " + err.message,
-        icon: "error",
-        button: {
-          text: "Fechar",
-          className: "btn btn-danger"
-        }
       });
-
     });
-
-  });
-
-}
+  }
     
     // Importar frota
    const formImportarFrota = document.getElementById('formImportarFrota');

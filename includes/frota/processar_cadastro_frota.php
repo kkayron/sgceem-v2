@@ -1,28 +1,51 @@
 <?php
-session_start();
-require_once '../../conexao/config.php';
-header('Content-Type: application/json');
 
-// Função para resposta padronizada
-function resposta($status, $mensagem) {
-    echo json_encode(['status' => $status, 'mensagem' => $mensagem]);
+// ========================================
+// BLOQUEIA ACESSO DIRETO
+// ========================================
+if (
+    !isset($_SERVER['HTTP_X_REQUESTED_WITH']) ||
+    strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) !== 'xmlhttprequest'
+) {
     exit;
 }
 
-// ==========================
+// ========================================
+// CONFIGURAÇÕES
+// ========================================
+require_once '../../conexao/config.php';
+
+require_once '../api/auth.php';
+require_once '../api/permissions.php';
+require_once '../api/response.php';
+
+header('Content-Type: application/json; charset=utf-8');
+
+// ========================================
+// VERIFICA SESSÃO
+// ========================================
+verificar_sessao();
+
+// ========================================
+// VERIFICA PERMISSÃO
+// ========================================
+$pagina_id = 2;
+verificar_permissao($pagina_id, 'pode_cadastrar');
+
+// ========================================
 // VALIDAÇÕES BÁSICAS
-// ==========================
-if (!isset($_POST['ativo']) || empty($_POST['ativo'])) {
-    resposta('erro', 'Campo "Ativo" é obrigatório.');
+// ========================================
+if (empty($_POST['ativo'])) {
+    api_response('erro', 'Campo "Ativo" é obrigatório.');
 }
 
-if (!isset($_POST['batalhao']) || empty($_POST['batalhao'])) {
-    resposta('erro', 'Campo "Batalhão" é obrigatório.');
+if (empty($_POST['batalhao'])) {
+    api_response('erro', 'Campo "Batalhão" é obrigatório.');
 }
 
-// ==========================
+// ========================================
 // PREPARA OS DADOS
-// ==========================
+// ========================================
 $batalhao = intval($_POST['batalhao']);
 $ativo = $_POST['ativo'];
 $tipo = $_POST['tipo'] ?? '';
@@ -50,36 +73,45 @@ $disponibilidade = $_POST['disponibilidade'] ?? '';
 $renavam = $_POST['renavam'] ?? '';
 $trem = $_POST['trem'] ?? '';
 
-// ==========================
+// ========================================
 // UPLOAD DA IMAGEM
-// ==========================
-$foto_capa_path = 'base.jpg'; // valor padrão
+// ========================================
+$foto_capa_path = 'base.jpg';
 
 if (isset($_FILES['foto_capa']) && $_FILES['foto_capa']['error'] === UPLOAD_ERR_OK) {
-    $ext = pathinfo($_FILES['foto_capa']['name'], PATHINFO_EXTENSION);
-    $nome_arquivo = uniqid('frota_', true) . "." . $ext;
-    $destino = '../../uploads/frotas/' . $nome_arquivo;
 
-    if (!is_dir('../../uploads/frotas')) {
-        mkdir('../../uploads/frotas', 0755, true);
+    $ext = strtolower(pathinfo($_FILES['foto_capa']['name'], PATHINFO_EXTENSION));
+
+    $nome_arquivo = uniqid('frota_', true) . "." . $ext;
+
+    $pasta = '../../uploads/frotas/';
+    $destinoArquivo = $pasta . $nome_arquivo;
+
+    if (!is_dir($pasta)) {
+        mkdir($pasta, 0755, true);
     }
 
-    if (move_uploaded_file($_FILES['foto_capa']['tmp_name'], $destino)) {
+    if (move_uploaded_file($_FILES['foto_capa']['tmp_name'], $destinoArquivo)) {
         $foto_capa_path = $nome_arquivo;
     } else {
-        resposta('erro', 'Falha ao salvar a imagem.');
+        api_response('erro', 'Falha ao salvar a imagem.');
     }
 }
 
-// ==========================
+// ========================================
 // DADOS ADICIONAIS
-// ==========================
-$dataHoraAgora = (new DateTime('now', new DateTimeZone('America/Sao_Paulo')))->format('Y-m-d H:i:s');
-$cadastrado_por = trim(($_SESSION['postograd'] ?? '') . ' ' . ($_SESSION['nomeguerra'] ?? ''));
+// ========================================
+$dataHoraAgora = (new DateTime('now', new DateTimeZone('America/Sao_Paulo')))
+    ->format('Y-m-d H:i:s');
 
-// ==========================
+$cadastrado_por = trim(
+    ($_SESSION['postograd'] ?? '') . ' ' .
+    ($_SESSION['nomeguerra'] ?? '')
+);
+
+// ========================================
 // INSERÇÃO NA TABELA FROTA
-// ==========================
+// ========================================
 $sql = "INSERT INTO frota (
     batalhao, foto_capa, disponibilidade, ativo, tipo, prefixo_velho, prefixo_sga, nome_sioc,
     nmr_patrimonio, nmr_eb, chassi, acervo, marca, modelo, ano,
@@ -87,23 +119,55 @@ $sql = "INSERT INTO frota (
     emprego_atual, ordem_fragmentaria, placa, subunidade, renavam, trem,
     data_inclusao, cadastrado_por, destino
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+    ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
 )";
 
 $stmt = $conexao->prepare($sql);
 
-$ok = $stmt->execute([
-    $batalhao, $foto_capa_path, $disponibilidade, $ativo, $tipo, $prefixo_velho, $prefixo_sga, $nome_sioc,
-    $nmr_patrimonio, $nmr_eb, $chassi, $acervo, $marca, $modelo, $ano,
-    $confiabilidade, $obs_encmat, $capacidade_tanque, $consumo, $missao,
-    $emprego_atual, $ordem_fragmentaria, $placa, $subunidade, $renavam, $trem,
-    $dataHoraAgora, $cadastrado_por, $destino
-]);
+if (!$stmt) {
+    api_response('erro', 'Erro ao preparar consulta.');
+}
 
-// ==========================
+$stmt->bind_param(
+    "issssssssssssssssssssssssssss",
+    $batalhao,
+    $foto_capa_path,
+    $disponibilidade,
+    $ativo,
+    $tipo,
+    $prefixo_velho,
+    $prefixo_sga,
+    $nome_sioc,
+    $nmr_patrimonio,
+    $nmr_eb,
+    $chassi,
+    $acervo,
+    $marca,
+    $modelo,
+    $ano,
+    $confiabilidade,
+    $obs_encmat,
+    $capacidade_tanque,
+    $consumo,
+    $missao,
+    $emprego_atual,
+    $ordem_fragmentaria,
+    $placa,
+    $subunidade,
+    $renavam,
+    $trem,
+    $dataHoraAgora,
+    $cadastrado_por,
+    $destino
+);
+
+$ok = $stmt->execute();
+
+// ========================================
 // RESPOSTA E LOG
-// ==========================
+// ========================================
 if ($ok) {
+
     $usuario_id = $_SESSION['usuario_id'] ?? 0;
     $acao = "Cadastro de frota";
     $descricao = "Frota cadastrada: $prefixo_sga ($tipo)";
@@ -112,11 +176,28 @@ if ($ok) {
 
     $log_sql = "INSERT INTO logs (usuario_id, acao, descricao, data_hora, ip, navegador)
                 VALUES (?, ?, ?, ?, ?, ?)";
-    $conexao->prepare($log_sql)->execute([
-        $usuario_id, $acao, $descricao, $dataHoraAgora, $ip, $navegador
-    ]);
 
-    resposta('ok', $prefixo_sga . ' cadastrado com sucesso pelo usuário ' . $cadastrado_por);
+    $stmtLog = $conexao->prepare($log_sql);
+
+    $stmtLog->bind_param(
+        "isssss",
+        $usuario_id,
+        $acao,
+        $descricao,
+        $dataHoraAgora,
+        $ip,
+        $navegador
+    );
+
+    $stmtLog->execute();
+
+    api_response(
+        'ok',
+        $prefixo_sga . ' cadastrado com sucesso pelo usuário ' . $cadastrado_por
+    );
+
 } else {
-    resposta('erro', 'Erro ao cadastrar no banco.');
+
+    api_response('erro', 'Erro ao cadastrar no banco.');
+
 }
