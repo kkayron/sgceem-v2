@@ -193,4 +193,52 @@ forms.forEach(f => registrarFiltros(f));
 
 };
 
+// ===================== USUÁRIOS ONLINE  =====================
+
+function carregarUsuariosOnline(){
+
+fetch("includes/api/usuarios_online.php")
+.then(response => response.json())
+.then(data => {
+
+let html = "<b>Usuários online:</b><br>";
+
+if(data.length === 0){
+html += "Nenhum usuário online";
+}else{
+
+data.forEach(function(usuario){
+html += "🟢 " + usuario + "<br>";
+});
+
+}
+
+document.getElementById("usuarios-online").innerHTML = html;
+
+});
+
+}
+
+// carrega ao abrir
+carregarUsuariosOnline();
+
+// atualiza a cada 10 segundos
+setInterval(carregarUsuariosOnline, 10000);
+
+
+function atualizarAtividade(){
+
+fetch("includes/api/atualiza_online.php", {
+method: "POST"
+}).catch(() => {});
+
+}
+
+window.addEventListener("beforeunload", function () {
+
+    navigator.sendBeacon("includes/api/usuario_offline.php");
+
+});
+
+
 

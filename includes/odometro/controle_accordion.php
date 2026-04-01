@@ -1,5 +1,14 @@
 <?php
+
 require_once '../../conexao/config.php';
+require_once '../api/seguranca.php';
+
+$permissoes = verificarPermissao(13);
+
+$pode_cadastrar = $permissoes['cadastrar'];
+$pode_editar    = $permissoes['editar'];
+$pode_deletar   = $permissoes['deletar'];
+$pode_importar  = $permissoes['importar'];
 
 if (!isset($_GET['viatura_id'])) {
     echo "<p class='text-muted'>Viatura não informada</p>";

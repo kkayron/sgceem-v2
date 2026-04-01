@@ -252,7 +252,8 @@ if (!empty($idsEmpenhos)) {
 /* ===========================
    3) Buscar saldo SIAFI em BULK (corrente + resto) por nmr_empenho
 =========================== */
-$mapaSiafi = []; // [nmr_empenho] => float
+$mapaSiafi = [];
+
 if (!empty($empenhos)) {
 
   $nums = [];
@@ -260,38 +261,45 @@ if (!empty($empenhos)) {
     $n = trim((string)$e['nmr_empenho']);
     if ($n !== '') $nums[$n] = true;
   }
+
   $nums = array_keys($nums);
 
   if (!empty($nums)) {
-    // para evitar query gigante com placeholders demais, faz chunks também
+
     $numChunks = array_chunk($nums, 400);
 
     foreach ($numChunks as $nch) {
+
       $placeholders = implode(',', array_fill(0, count($nch), '?'));
       $typesNums = str_repeat('s', count($nch));
 
       $sqlSiafi = "
-        SELECT
-          nmr_empenho,
-          MAX(
-            CAST(REPLACE(REPLACE(saldo_empenho, '.', ''), ',', '.') AS DECIMAL(18,2))
-          ) AS saldo_num
+        SELECT nmr_empenho, saldo_empenho
         FROM (
-          SELECT nmr_empenho, saldo_empenho FROM fin_siafi_corrente WHERE nmr_empenho IN ($placeholders)
+          SELECT nmr_empenho, saldo_empenho 
+          FROM fin_siafi_corrente 
+          WHERE nmr_empenho IN ($placeholders)
+
           UNION ALL
-          SELECT nmr_empenho, saldo_empenho FROM fin_siafi_restopagar WHERE nmr_empenho IN ($placeholders)
+
+          SELECT nmr_empenho, saldo_empenho 
+          FROM fin_siafi_restopagar 
+          WHERE nmr_empenho IN ($placeholders)
         ) x
-        GROUP BY nmr_empenho
       ";
 
       $stmtS = $conexao->prepare($sqlSiafi);
+
       if ($stmtS) {
         $stmtS->bind_param($typesNums . $typesNums, ...array_merge($nch, $nch));
         $stmtS->execute();
+
         $rS = $stmtS->get_result();
+
         while ($s = $rS->fetch_assoc()) {
-          $mapaSiafi[(string)$s['nmr_empenho']] = (float)$s['saldo_num'];
+          $mapaSiafi[(string)$s['nmr_empenho']] = (float)$s['saldo_empenho'];
         }
+
         $stmtS->close();
       }
     }

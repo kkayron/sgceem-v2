@@ -1,25 +1,15 @@
 <?php session_start(); ?>
-
 <?php
-require_once 'conexao/config.php';
-$manutencaosql = "SELECT valor FROM manutencao WHERE id = 1 LIMIT 1";
-$resmanut = $conexao->query($manutencaosql);
-if ($resmanut && $resmanut->num_rows > 0) {
-          while ($manut = $resmanut->fetch_assoc()) {
-              $valor = $manut['valor'];
+$manutencao = false;
 
-          }
-      }
-?>
-<?php
-
-$batalhoes = $conexao->query("SELECT id, nome, abreviatura FROM organizacoes_militares ORDER BY abreviatura ASC");
-$manutencao = $valor;
-
-if ($manutencao == "sim") {
+if ($manutencao) {
     header("Location: manutencao.php");
     exit;
 }
+?>
+<?php
+require_once 'conexao/config.php';
+$batalhoes = $conexao->query("SELECT id, nome, abreviatura FROM organizacoes_militares ORDER BY abreviatura ASC");
 ?>
 
 <!DOCTYPE html>

@@ -1,36 +1,16 @@
 <?php
 
 // ========================================
-// BLOQUEIA ACESSO DIRETO
-// ========================================
-if (
-    !isset($_SERVER['HTTP_X_REQUESTED_WITH']) ||
-    strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) !== 'xmlhttprequest'
-) {
-    exit;
-}
-
-// ========================================
 // CONFIGURAÇÕES
 // ========================================
 require_once '../../conexao/config.php';
-
-require_once '../api/auth.php';
-require_once '../api/permissions.php';
 require_once '../api/response.php';
+$pagina_id = 2;
+
+require_once('../api/seguranca_json_cadastrar.php');
 
 header('Content-Type: application/json; charset=utf-8');
 
-// ========================================
-// VERIFICA SESSÃO
-// ========================================
-verificar_sessao();
-
-// ========================================
-// VERIFICA PERMISSÃO
-// ========================================
-$pagina_id = 2;
-verificar_permissao($pagina_id, 'pode_cadastrar');
 
 // ========================================
 // VALIDAÇÕES BÁSICAS

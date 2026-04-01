@@ -1,5 +1,8 @@
 <?php
 require_once '../../conexao/config.php';
+require_once '../api/seguranca.php';
+
+$permissoes = verificarPermissao(14);
 
 $id = isset($_GET['id']) ? intval($_GET['id']) : 0;
 $paginaOs = isset($_GET['paginaOs']) ? intval($_GET['paginaOs']) : 1;

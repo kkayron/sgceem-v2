@@ -1,5 +1,8 @@
 <?php
 include_once('../../conexao/config.php'); // já define $conexao
+require_once '../api/seguranca_cadastrar.php';
+
+$permissoes = verificarPermissao(2);
 
 // 1️⃣ Sincronizar Marcas
 $sqlMarcasFrota = "SELECT DISTINCT marca FROM frota WHERE marca IS NOT NULL AND marca != ''";

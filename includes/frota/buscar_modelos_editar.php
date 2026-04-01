@@ -1,5 +1,15 @@
 <?php
-require '../../conexao/config.php';
+header('Content-Type: application/json; charset=utf-8');
+
+$pagina_id = 14;
+
+require_once('../api/seguranca_json_editar.php');
+require_once('../../conexao/config.php');
+
+if (!isset($_GET['marca_id'])) {
+    echo json_encode([]);
+    exit;
+}
 
 $id_marca = $_GET['marca_id'] ?? null;
 

@@ -1,5 +1,10 @@
 <?php
-require '../../conexao/config.php';
+header('Content-Type: application/json; charset=utf-8');
+
+$pagina_id = 14;
+
+require_once('../api/seguranca_json_editar.php');
+require_once('../../conexao/config.php');
 
 $id = $_GET['id'] ?? null;
 

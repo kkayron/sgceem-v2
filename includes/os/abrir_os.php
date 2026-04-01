@@ -1,4 +1,14 @@
 <?php
+header('Content-Type: application/json; charset=utf-8');
+// Impede acesso direto pelo navegador
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    echo json_encode([
+        'success' => false,
+        'message' => 'Acesso direto não permitido.'
+    ]);
+    exit;
+}
+
 session_start();
 ob_start();
 date_default_timezone_set('America/Fortaleza');

@@ -1,10 +1,23 @@
 <?php
+if (
+    !isset($_SERVER['HTTP_X_REQUESTED_WITH']) ||
+    strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) !== 'xmlhttprequest'
+) {
+    exit('Acesso direto não permitido.');
+}
+
 header('Content-Type: text/html; charset=utf-8');
 session_start();
 require_once('../../conexao/config.php');
 
-// ID da página correspondente no banco
-$pagina_id = intval(13); // <--- ajuste conforme o ID da página
+require_once '../api/seguranca.php';
+
+$permissoes = verificarPermissao(13);
+
+$pode_cadastrar = $permissoes['cadastrar'];
+$pode_editar    = $permissoes['editar'];
+$pode_deletar   = $permissoes['deletar'];
+$pode_importar  = $permissoes['importar'];
 
 // Verifica login e permissão de acesso
 if (!isset($_SESSION['usuario_id'])) {
@@ -12,34 +25,6 @@ if (!isset($_SESSION['usuario_id'])) {
     exit;
 }
 
-if (empty($_SESSION['permissoes'][$pagina_id]['pode_acessar'])) {
-    ?>
-    <!DOCTYPE html>
-    <html lang="pt-BR">
-    <head>
-        <meta charset="UTF-8">
-        <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    </head>
-    <body>
-        <script>
-            Swal.fire({
-                icon: 'error',
-                title: 'Acesso Negado',
-                text: 'Você não possui permissão para acessar esta página.',
-                confirmButtonText: 'Voltar ao Painel',
-                allowOutsideClick: false
-            }).then(() => window.location.href = 'index.php#partes/conteudo.php');
-        </script>
-    </body>
-    </html>
-    <?php
-    exit;
-}
-
-// Permissões específicas
-$pode_cadastrar = $_SESSION['permissoes'][$pagina_id]['pode_cadastrar'] ?? false;
-$pode_editar    = $_SESSION['permissoes'][$pagina_id]['pode_editar'] ?? false;
-$pode_deletar   = $_SESSION['permissoes'][$pagina_id]['pode_deletar'] ?? false;
 ?>
 <style>
 .btn-group .btn {

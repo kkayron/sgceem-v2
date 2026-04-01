@@ -1,5 +1,13 @@
 <?php
+
+header('Content-Type: application/json; charset=utf-8');
+
 session_start();
+
+$pagina_id = 2;
+
+require_once('../api/seguranca_json_importar.php');
+
 require '../../vendor/autoload.php';
 use PhpOffice\PhpSpreadsheet\IOFactory;
 require_once '../../conexao/config.php';

@@ -208,8 +208,9 @@ window.deletarMedicao = function(botao) {
     }).then((result) => {
         if (result.isConfirmed) {
             fetch('includes/odometro/excluir_medicao.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest' },
                 body: JSON.stringify({ viatura_id: viaturaId, data: data })
             })
             .then(response => response.json())
@@ -253,7 +254,7 @@ function atualizarHistoricoViatura(viaturaId) {
     const params = new URLSearchParams(window.location.search);
     params.set('viatura_id', viaturaId);
 
-    fetch(`/gceemv2/includes/odometro/controle_accordion.php?${params.toString()}`)
+    fetch(`includes/odometro/controle_accordion.php?${params.toString()}`)
         .then(response => response.text())
         .then(html => {
             container.innerHTML = html;

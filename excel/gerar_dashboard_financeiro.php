@@ -278,25 +278,29 @@ if (!empty($empenhos)) {
       $typesNums = str_repeat('s', count($nch));
 
       $sqlSiafi = "
-        SELECT
-          nmr_empenho,
-          MAX(
-            CAST(REPLACE(REPLACE(saldo_empenho, '.', ''), ',', '.') AS DECIMAL(18,2))
-          ) AS saldo_num
-        FROM (
-          SELECT nmr_empenho, saldo_empenho FROM fin_siafi_corrente WHERE nmr_empenho IN ($placeholders)
-          UNION ALL
-          SELECT nmr_empenho, saldo_empenho FROM fin_siafi_restopagar WHERE nmr_empenho IN ($placeholders)
-        ) x
-        GROUP BY nmr_empenho
-      ";
+SELECT
+  nmr_empenho,
+  saldo_empenho
+FROM (
+  SELECT nmr_empenho, saldo_empenho 
+  FROM fin_siafi_corrente 
+  WHERE nmr_empenho IN ($placeholders)
+
+  UNION ALL
+
+  SELECT nmr_empenho, saldo_empenho 
+  FROM fin_siafi_restopagar 
+  WHERE nmr_empenho IN ($placeholders)
+) x
+GROUP BY nmr_empenho
+";
       $stmtS = $conexao->prepare($sqlSiafi);
       if ($stmtS) {
         $stmtS->bind_param($typesNums . $typesNums, ...array_merge($nch, $nch));
         $stmtS->execute();
         $rS = $stmtS->get_result();
         while ($s = $rS->fetch_assoc()) {
-          $mapaSiafi[(string)$s['nmr_empenho']] = (float)$s['saldo_num'];
+          $mapaSiafi[(string)$s['nmr_empenho']] = (float)$s['saldo_empenho'];
         }
         $stmtS->close();
       }

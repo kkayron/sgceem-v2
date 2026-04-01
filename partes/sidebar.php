@@ -1,70 +1,4 @@
-<style>
-    @media (max-width: 991px) {
-  .sidebar {
-    position: fixed;
-    left: 0;
-    top: 0;
-    height: 100vh;
-    transform: translateX(-100%);
-    z-index: 1050;
-    transition: transform 0.3s ease;
-  }
 
-  body.sidebar-open .sidebar {
-    transform: translateX(0);
-  }
-}
-/* Sidebar militar */
-.military-sidebar {
-  background: #0d0f11 !important;
-  border-right: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-/* Logo reduzida SGC */
-.logo-mini {
-  display: none;
-  font-size: 18px;
-  margin-left: 10px;
-  letter-spacing: 2px;
-}
-
-/* Quando sidebar recolher */
-.sidebar.sidebar-mini .full-logo {
-  display: none !important;
-}
-.sidebar.sidebar-mini .logo-mini {
-  display: inline-block !important;
-}
-
-/* Links militares */
-.military-nav-item > a {
-  color: #d4d7d0 !important;
-  font-weight: 500;
-  transition: 0.2s;
-}
-
-.military-nav-item > a i {
-  color: #7faa49 !important; /* Verde tático */
-}
-
-.military-nav-item > a:hover {
-  background: rgba(127, 170, 73, 0.15);
-  border-left: 3px solid #7faa49;
-  padding-left: 17px;
-  color: white !important;
-}
-
-.nav-section h4 {
-  color: #7faa49 !important;
-  font-size: 12px;
-}
-
-/* Submenus */
-.nav-collapse a:hover {
-  background: rgba(127, 170, 73, 0.1);
-  color: #7faa49 !important;
-}
-</style>
 <!-- Sidebar -->
 <div class="sidebar military-sidebar" data-background-color="dark">
 
@@ -101,6 +35,8 @@
 // CONEXÃO
 // ======================================================================
 include_once('conexao/config.php'); // deve fornecer a variável $conexao
+	
+
 
 // ======================================================================
 // 1) BUSCAR TÓPICOS PRINCIPAIS

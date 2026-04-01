@@ -30,7 +30,7 @@ verificar_sessao();
 // ========================================
 // VERIFICA PERMISSÃO
 // ========================================
-$pagina_id = 2;
+$pagina_id = 14;
 verificar_permissao($pagina_id, 'pode_editar');
 
 // ========================================

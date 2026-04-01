@@ -1,5 +1,31 @@
 <?php
-header('Content-Type: application/json');
+header('Content-Type: application/json; charset=utf-8');
+
+// Impede acesso direto pelo navegador
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    echo json_encode([
+        'success' => false,
+        'message' => 'Acesso direto não permitido.'
+    ]);
+    exit;
+}
+
+// Verifica se a requisição é AJAX
+if (
+    !isset($_SERVER['HTTP_X_REQUESTED_WITH']) ||
+    strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) !== 'xmlhttprequest'
+) {
+    echo json_encode([
+        'success' => false,
+        'message' => 'Requisição inválida.'
+    ]);
+    exit;
+}
+
+
+$pagina_id = 13;
+
+require_once('../api/seguranca_json_deletar.php');
 require_once '../../conexao/config.php';
 
 // Recebe os dados via JSON

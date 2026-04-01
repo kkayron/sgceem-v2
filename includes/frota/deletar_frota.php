@@ -1,8 +1,10 @@
 <?php
-declare(strict_types=1);
+header('Content-Type: application/json; charset=utf-8');
 
+$pagina_id = 14;
 session_start();
-require_once("../../conexao/config.php");
+require_once('../api/seguranca_json_deletar.php');
+require_once('../../conexao/config.php');
 require_once("../../includes/funcoes/log.php");
 
 header('Content-Type: application/json; charset=utf-8');

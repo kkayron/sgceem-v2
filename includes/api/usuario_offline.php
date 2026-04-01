@@ -1,6 +1,6 @@
 <?php
 session_start();
-include_once('conexao/config.php');
+include_once('../conexao/config.php');
 
 if(isset($_SESSION['usuario_id'])){
 
@@ -14,11 +14,4 @@ if(isset($_SESSION['usuario_id'])){
 
     $stmt->bind_param("i", $usuario_id);
     $stmt->execute();
-    $stmt->close();
 }
-
-session_destroy();
-
-header("Location: login.php");
-exit;
-?>

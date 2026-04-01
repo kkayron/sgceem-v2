@@ -16,6 +16,7 @@ function carregarPagina(url, adicionarAoHistorico = true) {
       container.innerHTML = html;
       container.dataset.page = url;
       container.style.visibility = 'visible';
+	  atualizarAtividade();
 
       // Executa scripts inline e com src contidos no HTML carregado
       const scripts = container.querySelectorAll('script');
@@ -63,6 +64,7 @@ function carregarPagina(url, adicionarAoHistorico = true) {
 
 // Ao carregar o DOM, verifica se há uma página anterior no hash ou sessionStorage
 document.addEventListener("DOMContentLoaded", function () {
+	  atualizarAtividade();
   const conteudo = document.getElementById("conteudo");
   const urlHash = window.location.hash ? window.location.hash.substring(1) : null;
   const paginaSalva = sessionStorage.getItem('paginaAtual');
@@ -109,6 +111,4 @@ function fecharModalAberto() {
     document.querySelector('.modal-backdrop')?.remove();
   }
 }
-    
-    
     

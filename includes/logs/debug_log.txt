@@ -2,7 +2,7 @@ Array
 (
     [pagina] => 1
     [data] => 
-    [usuario] => Capitão Lacôrte
+    [usuario] => 
     [acao] => 
     [palavra] => 
 )

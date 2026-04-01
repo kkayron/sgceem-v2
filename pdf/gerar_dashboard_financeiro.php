@@ -529,6 +529,13 @@ $mapWarn = (int)($mapaCount['Nota faltando no controle'] ?? 0);
 $mapOk = (int)($mapaCount['Sem alteração'] ?? 0);
 $mapNo = (int)($mapaCount['Sem SIAFI'] ?? 0);
 
+$porc_req_ent = $porc_req + $porc_entregue;
+
+$thisNao = fmtMoney($soma_nao_entregue);
+$thisEnt = fmtMoney($soma_entregue);
+$thisCap = fmtMoney($soma_capeador);
+$thisUtil = fmtMoney($soma_total_utilizado);
+
 $kpis = <<<HTML
 <div class="section-title">Visão Geral</div>
 <div class="hint">Em aberto = Não entregue + Entregue + Capeador. Utilizado = Em aberto + Liquidado. Diferença = (Saldo SIAFI − Saldo Controle).</div>
@@ -574,17 +581,17 @@ $kpis = <<<HTML
 <div class="bar">
   <div class="seg liq" style="width: {$wLiq}%;">Liquidado {$porc_liquidado}%</div>
   <div class="seg cap" style="width: {$wCap}%;">Capeador {$porc_capeador}%</div>
-  <div class="seg req" style="width: {$wReqEnt}%;">Req/Ent {$porc_req + $porc_entregue}%</div>
+  <div class="seg req" style="width: {$wReqEnt}%;">Req/Ent {$porc_req_ent}%</div>
 </div>
 
 <div class="section-title">Resumo detalhado</div>
 <table class="summary-table">
   <tr><td class="lab">Total Empenhado</td><td class="val">{$kpiTotal}</td></tr>
-  <tr><td class="lab">Não entregue</td><td class="val">{$thisNao = fmtMoney($soma_nao_entregue)}</td></tr>
-  <tr><td class="lab">Entregue</td><td class="val">{$thisEnt = fmtMoney($soma_entregue)}</td></tr>
-  <tr><td class="lab">Capeador</td><td class="val">{$thisCap = fmtMoney($soma_capeador)}</td></tr>
+  <tr><td class="lab">Não entregue</td><td class="val">{$thisNao}</td></tr>
+  <tr><td class="lab">Entregue</td><td class="val">{$thisEnt}</td></tr>
+  <tr><td class="lab">Capeador</td><td class="val">{$thisCap}</td></tr>
   <tr><td class="lab">Liquidado</td><td class="val">{$kpiLiq}</td></tr>
-  <tr><td class="lab">Total Utilizado</td><td class="val">{$thisUtil = fmtMoney($soma_total_utilizado)}</td></tr>
+  <tr><td class="lab">Total Utilizado</td><td class="val">{$thisUtil}</td></tr>
   <tr><td class="lab">Saldo Real (Controle)</td><td class="val">{$kpiSaldoR}</td></tr>
   <tr><td class="lab">Saldo SIAFI</td><td class="val">{$kpiSaldoS}</td></tr>
   <tr><td class="lab">Diferença (SIAFI − Controle)</td><td class="val">{$kpiDif}</td></tr>

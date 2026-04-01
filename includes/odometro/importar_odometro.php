@@ -7,6 +7,12 @@ require_once '../../conexao/config.php';
 
 header('Content-Type: application/json');
 
+
+$pagina_id = 13;
+
+require_once('../api/seguranca_json_importar.php');
+require_once '../../conexao/config.php';
+
 $response = [
     'status' => 'ok',
     'sucessos' => 0,

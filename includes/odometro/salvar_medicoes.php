@@ -1,5 +1,27 @@
 <?php
-header('Content-Type: application/json');
+header('Content-Type: application/json; charset=utf-8');
+
+// Permite apenas método POST
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    echo json_encode([
+        'success' => false,
+        'message' => 'Acesso direto não permitido.'
+    ]);
+    exit;
+}
+
+// Verifica se existe dados do formulário
+if (!isset($_POST['medicoes'])) {
+    echo json_encode([
+        'success' => false,
+        'message' => 'Requisição inválida.'
+    ]);
+    exit;
+}
+
+$pagina_id = 13;
+
+require_once('../api/seguranca_json_cadastrar.php');
 include_once('../../conexao/config.php');
 
 $dataSelecionada = $_POST['data'] ?? date('Y-m-d');

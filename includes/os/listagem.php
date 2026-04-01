@@ -665,6 +665,7 @@ $batalhao_filtro = $_GET['batalhao'] ?? '';
 </div>
 
 <div class="row g-3">
+  <?php if ($result && $result->num_rows > 0): ?>
   <?php while ($os = $result->fetch_assoc()): ?>
     <div class="col-12 col-md-6 col-lg-4">
       <div class="card border-0 shadow-sm h-100 rounded-4">
@@ -846,9 +847,17 @@ if (!function_exists('dataValida')) {
         </div>
       </div>
     </div>
-  <?php endwhile; ?>
+    <?php endwhile; ?>
+<?php else: ?>
+
+<div class="col-12">
+  <div class="alert alert-light border text-center py-4">
+    <i class="fas fa-folder-open fa-2x text-secondary mb-2"></i><br>
+    <strong>Nenhuma ordem de serviço encontrada.</strong>
+  </div>
 </div>
 
+<?php endif; ?>
 <!-- Paginação inferior -->
 <div class="paginacao mt-3">
   <?= renderPaginacaoOS($pagina, $totalPaginas, $limite, $queryString, 'includes/os/listagem.php'); ?>
