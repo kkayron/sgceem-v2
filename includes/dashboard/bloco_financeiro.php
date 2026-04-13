@@ -1,7 +1,14 @@
 <?php
-ini_set('display_errors', 1);
-error_reporting(E_ALL);
 session_start();
+
+require_once '../api/seguranca.php';
+
+$permissoes = verificarPermissao(56);
+
+$pode_cadastrar = $permissoes['cadastrar'];
+$pode_editar    = $permissoes['editar'];
+$pode_deletar   = $permissoes['deletar'];
+$pode_importar  = $permissoes['importar'];
 
 if (!isset($_SESSION['usuario_id'])) {
   http_response_code(401);
@@ -10,6 +17,7 @@ if (!isset($_SESSION['usuario_id'])) {
 }
 
 include_once('../../conexao/config.php');
+
 
 // tenta liberar joins grandes (nem todo host permite, mas não atrapalha)
 @mysqli_query($conexao, "SET SESSION SQL_BIG_SELECTS=1");

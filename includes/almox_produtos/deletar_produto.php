@@ -1,6 +1,11 @@
 <?php
 session_start();
 include_once("../../conexao/config.php");
+$pagina_id = 30;
+
+require_once('../api/seguranca_json_deletar.php');
+
+
 include_once("../../includes/funcoes/log.php");
 
 header('Content-Type: application/json; charset=utf-8');

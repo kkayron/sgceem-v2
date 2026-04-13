@@ -1,6 +1,10 @@
 <?php
-header('Content-Type: application/json; charset=utf-8');
 session_start();
+header('Content-Type: application/json; charset=utf-8');
+
+$pagina_id = 32;
+
+require_once('../api/seguranca_json_editar.php');
 include '../../conexao/config.php';
 include '../funcoes/log_pedido_almox.php';
 

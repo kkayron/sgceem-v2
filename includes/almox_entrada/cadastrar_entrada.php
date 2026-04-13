@@ -1,6 +1,14 @@
 <?php
-// includes/almoxarifado/cadastrar_entrada.php
 session_start();
+require_once '../api/seguranca_cadastrar.php';
+
+$permissoes = verificarPermissao(31);
+
+$pode_cadastrar = $permissoes['cadastrar'];
+$pode_editar    = $permissoes['editar'];
+$pode_deletar   = $permissoes['deletar'];
+$pode_importar  = $permissoes['importar'];
+
 include '../../conexao/config.php';
 include '../funcoes/log.php';
 

@@ -1,5 +1,13 @@
 <?php
 session_start();
+require_once '../api/seguranca_deletar.php';
+
+$permissoes = verificarPermissao(31);
+
+$pode_cadastrar = $permissoes['cadastrar'];
+$pode_editar    = $permissoes['editar'];
+$pode_deletar   = $permissoes['deletar'];
+$pode_importar  = $permissoes['importar'];
 include_once("../../conexao/config.php");
 
 $id = $_POST['id'] ?? 0;

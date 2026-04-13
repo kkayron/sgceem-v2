@@ -3,6 +3,10 @@ header('Content-Type: application/json; charset=utf-8');
 session_start();
 include_once("../../conexao/config.php");
 
+$pagina_id = 30;
+
+require_once('../api/seguranca_json.php');
+
 // ======================================================
 // IDENTIFICAÇÃO DO USUÁRIO E SUAS OMs VISÍVEIS
 // ======================================================

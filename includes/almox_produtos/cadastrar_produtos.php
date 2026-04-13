@@ -2,6 +2,12 @@
 session_start();
 header('Content-Type: application/json');
 include_once("../../conexao/config.php");
+
+$pagina_id = 30;
+
+require_once('../api/seguranca_json_cadastrar.php');
+
+
 include_once("../../includes/funcoes/log.php");
 
 function post($key) {

@@ -1,6 +1,11 @@
 <?php
 header('Content-Type: application/json');
 include '../../conexao/config.php';
+$pagina_id = 30;
+
+require_once('../api/seguranca_json_editar.php');
+
+
 include '../funcoes/log_os.php';
 session_start();
 

@@ -1,17 +1,11 @@
 <?php
-header('Content-Type: application/json; charset=utf-8');
-// Impede acesso direto pelo navegador
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    echo json_encode([
-        'success' => false,
-        'message' => 'Acesso direto não permitido.'
-    ]);
-    exit;
-}
+$pagina_id = 13;
 
-session_start();
+require_once('../../includes/api/seguranca_json_cadastrar.php');
+
 ob_start();
 date_default_timezone_set('America/Fortaleza');
+
 include_once("../../conexao/config.php");
 include_once("../../includes/funcoes/log.php");
 

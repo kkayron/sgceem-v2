@@ -372,6 +372,7 @@ $sql = "
   </div>
 </div>
 
+          <?php if ($pode_importar): ?>
 <!-- Modal de Importação -->
 <div class="modal fade" id="modalImportarViaturas" tabindex="-1">
   <div class="modal-dialog">
@@ -434,7 +435,7 @@ $sql = "
     </div>
   </div>
 </div>
-
+<?php endif; ?>
 <script>
     window.funcaoInicializacao = 'inicializarCadastroVtrEqp';
 </script>

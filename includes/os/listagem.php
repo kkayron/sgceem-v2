@@ -1,52 +1,18 @@
 <?php
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
 header('Content-Type: text/html; charset=utf-8');
 session_start();
+
+require_once '../api/seguranca.php';
+
+$permissoes = verificarPermissao(15);
+
+$pode_cadastrar = $permissoes['cadastrar'];
+$pode_editar    = $permissoes['editar'];
+$pode_deletar   = $permissoes['deletar'];
+$pode_importar  = $permissoes['importar'];
+
 include_once('../../conexao/config.php');
 
-// ID da página correspondente no banco
-$pagina_id = intval(15); // <--- ajuste conforme o ID da página de cadastro de Vtr/Eqp no banco
-
-// Verifica login e permissão de acesso
-if (!isset($_SESSION['usuario_id'])) {
-    header("Location: login.php");
-    exit;
-}
-
-if (empty($_SESSION['permissoes'][$pagina_id]['pode_acessar'])) {
-    ?>
-    <!DOCTYPE html>
-    <html lang="pt-BR">
-    <head>
-        <meta charset="UTF-8">
-        <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    </head>
-    <body>
-<script>
-Swal.fire({
-    icon: 'error',
-    title: 'Acesso Negado',
-    text: 'Você não possui permissão para acessar esta página.',
-    confirmButtonText: 'Voltar ao Painel',
-    allowOutsideClick: false
-}).then(() => {
-    carregarPagina('partes/conteudo.php');
-});
-</script>
-    </body>
-    </html>
-    <?php
-    exit;
-}
-
-// Permissões específicas
-$pode_cadastrar = $_SESSION['permissoes'][$pagina_id]['pode_cadastrar'] ?? false;
-$pode_editar    = $_SESSION['permissoes'][$pagina_id]['pode_editar'] ?? false;
-$pode_deletar   = $_SESSION['permissoes'][$pagina_id]['pode_deletar'] ?? false;
-$pode_importar   = $_SESSION['permissoes'][$pagina_id]['pode_importar'] ?? false;
-$pode_exportar   = $_SESSION['permissoes'][$pagina_id]['pode_exportar'] ?? false;
 ?>
 <?php
 if (session_status() === PHP_SESSION_NONE) session_start();
@@ -471,13 +437,17 @@ $filtrosVisiveis = !empty($_GET);
         <h6 class="text-muted">Listagem das ordens de serviços realizadas ou em andamento.</h6>
       </div>
       <div>
+		  <?php if ($pode_cadastrar): ?>
         <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalCadastroOS">
           <i class="fa fa-user-plus me-1"></i> Abrir Ordem de Serviço
         </button>
+		 <?php endif; ?>
          <!-- Botão para abrir modal -->
+		  <?php if ($pode_importar): ?>
 <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalImportarOS">
   Importar OS
 </button>
+		 <?php endif; ?>
            <button id="btnExportarExcelOS" class="btn btn-success">
   <i class="fas fa-file-excel"></i> Exportar Excel
 </button>

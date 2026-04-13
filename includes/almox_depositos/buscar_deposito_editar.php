@@ -2,7 +2,9 @@
 include_once("../../conexao/config.php");
 
 header('Content-Type: application/json; charset=utf-8');
+$pagina_id = 50;
 
+require_once('../api/seguranca_json_editar.php');
 // ===============================
 // Validação do ID
 // ===============================

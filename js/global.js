@@ -193,52 +193,66 @@ forms.forEach(f => registrarFiltros(f));
 
 };
 
-// ===================== USUÁRIOS ONLINE  =====================
+// ===================== USUÁRIOS ONLINE =====================
 
+// 🔄 Carregar usuários online
 function carregarUsuariosOnline(){
 
-fetch("includes/api/usuarios_online.php")
+fetch("includes/api/usuarios_online.php", {
+    headers: {
+        "X-Requested-With": "XMLHttpRequest"
+    }
+})
 .then(response => response.json())
 .then(data => {
 
 let html = "<b>Usuários online:</b><br>";
 
-if(data.length === 0){
-html += "Nenhum usuário online";
+if(!data || data.length === 0){
+    html += "Nenhum usuário online";
 }else{
-
-data.forEach(function(usuario){
-html += "🟢 " + usuario + "<br>";
-});
-
+    data.forEach(function(usuario){
+        html += "🟢 " + usuario + "<br>";
+    });
 }
 
 document.getElementById("usuarios-online").innerHTML = html;
 
+})
+.catch(() => {
+    document.getElementById("usuarios-online").innerHTML = "Erro ao carregar";
 });
 
 }
 
-// carrega ao abrir
-carregarUsuariosOnline();
-
-// atualiza a cada 10 segundos
-setInterval(carregarUsuariosOnline, 10000);
-
-
+// 🔄 Atualizar atividade (heartbeat)
 function atualizarAtividade(){
 
 fetch("includes/api/atualiza_online.php", {
-method: "POST"
+    method: "POST",
+    headers: {
+        "X-Requested-With": "XMLHttpRequest"
+    }
 }).catch(() => {});
 
 }
 
+// 🚀 Inicialização
+carregarUsuariosOnline();
+atualizarAtividade();
+
+// ⏱️ Intervalos
+setInterval(carregarUsuariosOnline, 10000); // lista
+setInterval(atualizarAtividade, 5000); // heartbeat
+
+// 🔴 Offline ao sair
 window.addEventListener("beforeunload", function () {
 
-    navigator.sendBeacon("includes/api/usuario_offline.php");
+    navigator.sendBeacon(
+        "includes/api/usuario_offline.php",
+        new Blob([], { type: 'application/x-www-form-urlencoded' })
+    );
 
 });
-
 
 

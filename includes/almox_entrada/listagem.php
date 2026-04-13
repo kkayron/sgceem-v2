@@ -3,6 +3,15 @@ header('Content-Type: text/html; charset=utf-8');
 session_start();
 include_once('../../conexao/config.php');
 
+require_once '../api/seguranca.php';
+
+$permissoes = verificarPermissao(50);
+
+$pode_cadastrar = $permissoes['cadastrar'];
+$pode_editar    = $permissoes['editar'];
+$pode_deletar   = $permissoes['deletar'];
+$pode_importar  = $permissoes['importar'];
+
 // ======================================================
 // IDENTIFICAÇÃO DO USUÁRIO E SUAS OMs VISÍVEIS
 // ======================================================
@@ -200,9 +209,12 @@ $queryString = http_build_query($paramsGET);
         <h6 class="text-muted">Entradas de produtos no estoque</h6>
       </div>
         <div>
+			<?php if ($pode_cadastrar): ?>
          <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalCadastroEntradaAlmox">
           <i class="fa fa-plus me-1"></i> Cadastrar entrada
         </button>
+			
+          <?php endif; ?>
     
       </div>
     </div>
@@ -449,19 +461,23 @@ $resDepositos = $conexao->query($sqlDepositos);
                       <i class="fas fa-chevron-down"></i>
                     </button>
 
+			<?php if ($pode_editar): ?>
                     <button class="btn btn-sm btn-outline-warning"
                             onclick="editarEntradaAlmox(<?= $entrada['id'] ?>)"
                             data-bs-toggle="modal"
                             data-bs-target="#modalEditarEntradaAlmox">
                       <i class="fas fa-edit me-1"></i> Editar
                     </button>
+					  <?php endif; ?>
 
+			<?php if ($pode_deletar): ?>
                     <button type="button"
                             class="btn btn-sm btn-outline-danger btn-deletar-entrada"
                             data-id="<?= $entrada['id'] ?>"
                             title="Remover">
                       <i class="fa fa-trash me-1"></i> Excluir
                     </button>
+					  <?php endif; ?>
                   </div>
                 </div>
               </div>
@@ -538,6 +554,7 @@ $resDepositos = $conexao->query($sqlDepositos);
   <?= renderPaginacaoEntradas($pagina, $totalPaginas, $limite, $queryString); ?>
 </div>
 
+			<?php if ($pode_cadastrar): ?>
 <!-- MODAL DE CADASTRO DE ENTRADA DO ALMOXARIFADO -->
 <div class="modal fade" id="modalCadastroEntradaAlmox" tabindex="-1" aria-labelledby="modalCadastroEntradaAlmoxLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
@@ -678,7 +695,9 @@ $depositos_visiveis = getDepositosVisiveis($conexao, $oms_visiveis);
     </div>
   </div>
 </div>
-
+<?php endif; ?>
+	  
+			<?php if ($pode_editar): ?>
 
 <!-- MODAL DE EDIÇÃO DE ENTRADA DO ALMOXARIFADO -->
 <div class="modal fade" id="modalEditarEntradaAlmox" tabindex="-1" aria-labelledby="modalEditarEntradaAlmoxLabel" aria-hidden="true">
@@ -775,7 +794,7 @@ $depositos_visiveis = getDepositosVisiveis($conexao, $oms_visiveis);
     </div>
   </div>
 </div>
-
+<?php endif; ?>
       
       
       

@@ -1,11 +1,15 @@
 <?php
 session_start();
+require_once '../api/seguranca_editar.php';
+
+$permissoes = verificarPermissao(31);
+
+$pode_cadastrar = $permissoes['cadastrar'];
+$pode_editar    = $permissoes['editar'];
+$pode_deletar   = $permissoes['deletar'];
+$pode_importar  = $permissoes['importar'];
 include_once("../../conexao/config.php");
 
-// Debug (opcional)
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
 
 $usuarioLogado = $_SESSION['usuario_id'] ?? 0;
 

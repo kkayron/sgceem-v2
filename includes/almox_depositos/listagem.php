@@ -1,10 +1,17 @@
 <?php
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
 header('Content-Type: text/html; charset=utf-8');
 session_start();
 require_once '../../conexao/config.php';
+
+require_once '../api/seguranca.php';
+
+$permissoes = verificarPermissao(50);
+
+$pode_cadastrar = $permissoes['cadastrar'];
+$pode_editar    = $permissoes['editar'];
+$pode_deletar   = $permissoes['deletar'];
+$pode_importar  = $permissoes['importar'];
+
 
 // ============================
 // BATALHÕES PERMITIDOS AO USUÁRIO
@@ -206,6 +213,7 @@ $queryString = http_build_query($paramsGET);
         <h3 class="fw-bold mb-1">Listagem dos Depósitos do Almox Peças</h3>
         <h6 class="text-muted">Depósitos cadastrados</h6>
       </div>
+			<?php if ($pode_cadastrar): ?>
         <div>
         <button type="button"
         class="btn btn-primary"
@@ -213,9 +221,8 @@ $queryString = http_build_query($paramsGET);
         data-bs-target="#modalCadastroDeposito">
   <i class="fa fa-warehouse me-1"></i> Cadastrar Depósito
 </button>
-
-    
       </div>
+          <?php endif; ?>
     </div>
    <!-- Botão para mostrar/ocultar filtros -->
 <div class="mb-3">
@@ -424,13 +431,15 @@ $batalhao_filtro = $_GET['batalhao'] ?? '';
 
             <!-- Botões -->
             <div class="d-flex gap-2 flex-wrap justify-content-end mt-3">
+			<?php if ($pode_editar): ?>
               <button class="btn btn-sm btn-outline-warning d-flex align-items-center"
                       onclick="editarDepositoAlmox(<?= (int)$dep['id'] ?>)"
                       data-bs-toggle="modal"
                       data-bs-target="#modalEditarDeposito">
                 <i class="fas fa-edit me-1"></i> Editar
               </button>
-
+            <?php endif; ?>
+				<?php if ($pode_deletar): ?>
               <button type="button"
         class="btn btn-sm btn-outline-danger d-flex align-items-center btn-deletar-deposito"
         data-id="<?= $dep['id'] ?>"
@@ -439,6 +448,7 @@ $batalhao_filtro = $_GET['batalhao'] ?? '';
         title="Excluir depósito">
   <i class="fas fa-trash-alt me-1"></i> Excluir
 </button>
+            <?php endif; ?>
 
             </div>
 
@@ -462,6 +472,7 @@ $batalhao_filtro = $_GET['batalhao'] ?? '';
 </div>
 
       
+			<?php if ($pode_cadastrar): ?>
       <!-- Modal de Cadastro de Depósito -->
 <div class="modal fade"
      id="modalCadastroDeposito"
@@ -557,6 +568,8 @@ $batalhao_filtro = $_GET['batalhao'] ?? '';
     </div>
   </div>
 </div>
+          <?php endif; ?>
+			<?php if ($pode_editar): ?>
       <!-- Modal de Edição de Depósitos -->
 <div class="modal fade" id="modalEditarDeposito" tabindex="-1">
   <div class="modal-dialog modal-lg">
@@ -610,8 +623,7 @@ $batalhao_filtro = $_GET['batalhao'] ?? '';
     </div>
   </div>
 </div>
-
-
+          <?php endif; ?>
 <!-- Script da página de Cadastro de Fornecedores -->
 <script>
     window.funcaoInicializacao = 'inicializarAlmoxDepositos';

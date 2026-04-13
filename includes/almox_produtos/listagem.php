@@ -3,6 +3,16 @@ header('Content-Type: text/html; charset=utf-8');
 session_start();
 require_once '../../conexao/config.php';
 
+require_once '../api/seguranca.php';
+
+$permissoes = verificarPermissao([30]);
+
+$pode_cadastrar = $permissoes['cadastrar'];
+$pode_editar    = $permissoes['editar'];
+$pode_deletar   = $permissoes['deletar'];
+$pode_importar  = $permissoes['importar'];
+$pode_exportar  = $permissoes['exportar'];
+
 // ============================
 // BATALHÕES PERMITIDOS AO USUÁRIO
 // ============================
@@ -203,10 +213,11 @@ $queryString = http_build_query($paramsGET);
         <h6 class="text-muted">Produtos cadastrados</h6>
       </div>
         <div>
+			<?php if($pode_cadastrar): ?>
         <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalCadastroProduto">
           <i class="fa fa-user-plus me-1"></i> Cadastrar Produto
         </button>
-    
+    <?php endif; ?>
       </div>
     </div>
    <!-- Botão para mostrar/ocultar filtros -->
@@ -447,13 +458,15 @@ $batalhao_filtro = $_GET['batalhao'] ?? '';
 
             <!-- Botões -->
             <div class="d-flex gap-2 flex-wrap justify-content-end mt-3">
+			<?php if($pode_editar): ?>
               <button class="btn btn-sm btn-outline-warning d-flex align-items-center"
                       onclick="editarProdutoAlmox(<?= $prod['id'] ?>)"
                       data-bs-toggle="modal"
                       data-bs-target="#modalEditarProduto">
                 <i class="fas fa-edit me-1"></i> Editar
               </button>
-
+<?php endif; ?>
+			<?php if($pode_deletar): ?>
               <button type="button"
                       class="btn btn-sm btn-outline-danger d-flex align-items-center"
                       data-id="<?= $prod['id'] ?>"
@@ -462,6 +475,7 @@ $batalhao_filtro = $_GET['batalhao'] ?? '';
                       title="Excluir produto">
                 <i class="fas fa-trash-alt me-1"></i> Excluir
               </button>
+				<?php endif; ?>
             </div>
           </div>
         <?php endwhile; ?>

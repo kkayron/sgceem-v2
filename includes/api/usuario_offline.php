@@ -1,8 +1,13 @@
 <?php
 session_start();
-include_once('../conexao/config.php');
+include_once('../../conexao/config.php');
 
-if(isset($_SESSION['usuario_id'])){
+// 🔒 Só permite POST (beacon)
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    exit;
+}
+
+if (isset($_SESSION['usuario_id'])) {
 
     $usuario_id = $_SESSION['usuario_id'];
 
@@ -14,4 +19,5 @@ if(isset($_SESSION['usuario_id'])){
 
     $stmt->bind_param("i", $usuario_id);
     $stmt->execute();
+    $stmt->close();
 }

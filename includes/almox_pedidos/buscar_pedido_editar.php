@@ -1,5 +1,9 @@
 <?php
 header('Content-Type: application/json; charset=utf-8');
+
+$pagina_id = 32;
+
+require_once('../api/seguranca_json_editar.php');
 if (session_status() === PHP_SESSION_NONE) session_start();
 include_once('../../conexao/config.php');
 

@@ -3,6 +3,16 @@ header('Content-Type: text/html; charset=utf-8');
 if (session_status() === PHP_SESSION_NONE) session_start();
 include_once('../../conexao/config.php');
 
+require_once '../api/seguranca.php';
+
+$permissoes = verificarPermissao(33);
+
+$pode_cadastrar = $permissoes['cadastrar'];
+$pode_editar    = $permissoes['editar'];
+$pode_deletar   = $permissoes['deletar'];
+$pode_importar  = $permissoes['importar'];
+$pode_exportar  = $permissoes['exportar'];
+
 // =============================
 // Dados do usuário
 // =============================
@@ -272,11 +282,12 @@ $queryString = http_build_query($paramsGET);
         <h6 class="text-muted">Estoque atual</h6>
       </div>
         <div>
+			<?php if ($pode_exportar): ?>
 <!-- BOTÃO DE EXPORTAR PDF -->
 <button type="button" class="btn btn-danger" onclick="baixarPDF()">
   <i class="fa fa-file-pdf me-1"></i> Baixar PDF
 </button>
-    
+    <?php endif; ?>
       </div>
     </div>
    <!-- Botão para mostrar/ocultar filtros -->

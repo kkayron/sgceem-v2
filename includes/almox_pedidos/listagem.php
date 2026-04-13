@@ -1,7 +1,19 @@
 <?php
 header('Content-Type: text/html; charset=utf-8');
-if (session_status() === PHP_SESSION_NONE) session_start();
+if (session_status() === PHP_SESSION_NONE) 
+	
+session_start();
 include_once('../../conexao/config.php');
+
+require_once '../api/seguranca.php';
+
+$permissoes = verificarPermissao([17, 32]);
+
+$pode_cadastrar = $permissoes['cadastrar'];
+$pode_editar    = $permissoes['editar'];
+$pode_deletar   = $permissoes['deletar'];
+$pode_importar  = $permissoes['importar'];
+$pode_exportar  = $permissoes['exportar'];
 
 // ======================================================
 // ✅ Diagnóstico/erros (deixe ligado enquanto testa)
@@ -454,9 +466,11 @@ try {
         <h6 class="text-muted">Listagem dos pedidos realizados ou em andamento.</h6>
       </div>
       <div>
+		  <?php if($pode_cadastrar): ?>
         <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalCadastrarPedidoAlmox">
           <i class="fa fa-plus me-1"></i> Cadastrar Pedido
         </button>
+		  <?php endif; ?>
       </div>
     </div>
 
@@ -694,7 +708,7 @@ $podeAutorizar = in_array($_SESSION['funcao_id'] ?? 0, $funcoesPermitidas);
                   </li>
                 </ul>
               </div>
-
+<?php if($pode_editar): ?>
               <button
                 class="btn btn-sm btn-outline-warning"
                 onclick="editarPedidoAlmox(<?= $pedido['id'] ?>)"
@@ -703,7 +717,8 @@ $podeAutorizar = in_array($_SESSION['funcao_id'] ?? 0, $funcoesPermitidas);
               >
                 <i class="fas fa-edit me-1"></i> Editar
               </button>
-
+<?php endif; ?>
+				<?php if($pode_deletar): ?>
               <button 
                 type="button"
                 class="btn btn-sm btn-outline-danger d-flex align-items-center gap-1 btn-deletar-pedido-almox"
@@ -715,6 +730,7 @@ $podeAutorizar = in_array($_SESSION['funcao_id'] ?? 0, $funcoesPermitidas);
                 <i class="fa fa-times"></i> 
                 <span class="d-none d-md-inline">Remover</span>
               </button>
+				<?php endif; ?>
             </div>
 
             <div class="collapse mt-3" id="itensPedidoAlmox<?= $pedido['id'] ?>">
