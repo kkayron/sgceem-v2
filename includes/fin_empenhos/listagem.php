@@ -1,9 +1,32 @@
 <?php
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
 header('Content-Type: text/html; charset=utf-8');
 session_start();
+require_once '../api/seguranca.php';
+
+$permissoes = verificarPermissao([24]);
+
+$pode_cadastrar = $permissoes['cadastrar'];
+$pode_editar    = $permissoes['editar'];
+$pode_deletar   = $permissoes['deletar'];
+$pode_importar  = $permissoes['importar'];
+$pode_exportar  = $permissoes['exportar'];
+
+if (!isset($_SESSION['usuario_id'])) {
+  http_response_code(401);
+  echo "<div class='alert alert-danger'>Sessão expirada. Faça login novamente.</div>";
+  exit;
+}
+
+// BLOQUEAR ACESSO DIRETO VIA URL
+if (
+    !isset($_SERVER['HTTP_X_REQUESTED_WITH']) ||
+    strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) !== 'xmlhttprequest'
+) {
+    http_response_code(403);
+    echo "<div class='alert alert-danger'>Acesso direto não permitido.</div>";
+    exit;
+}
+
 include_once('../../conexao/config.php');
 
 // ======================================================================
@@ -555,15 +578,18 @@ $queryString = http_build_query($paramsGET);
         <h6 class="text-muted">Gerenciamento dos empenhos cadastrados no sistema.</h6>
       </div>
         <div>
+			<?php if($pode_importar): ?>
             <!-- Botão para abrir modal -->
 <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalImportarEmpenhos">
   Importar Empenhos
 </button>
+			<?php endif; ?>
             <!-- Botão Excel -->
+			<?php if($pode_exportar): ?>
 <button id="btnExportarExcelEmpenhos" class="btn btn-success">
     <i class="fas fa-file-excel"></i> Exportar Excel
 </button>
-
+			<?php endif; ?>
         </div>
     </div>
       <div class="mb-3">
@@ -1186,12 +1212,14 @@ $soma_diferenca += $diferenca;
           <i class="fas fa-eye me-1"></i> Ver
         </button>
 
+<?php if($pode_editar): ?>
         <button class="btn btn-sm btn-outline-warning"
           onclick="editarEmpenho(<?= $id_requisicao ?>)"
           data-bs-toggle="modal"
           data-bs-target="#modalGerarEmpenho">
           <i class="fas fa-edit"></i>
         </button>
+		  <?php endif; ?>
       </div>
 
     </div>
@@ -1441,6 +1469,7 @@ document.getElementById("sum_diferenca").innerText           = "<?= number_forma
 </div>
 
 
+<?php if($pode_editar): ?>
 
 <!-- Modal de Gerar Empenho -->
 <div class="modal fade" id="modalGerarEmpenho" tabindex="-1" aria-labelledby="modalLabelGerarEmpenho" aria-hidden="true">
@@ -1509,8 +1538,6 @@ document.getElementById("sum_diferenca").innerText           = "<?= number_forma
     </div>
   </div>
 </div>
-
-
 
 <!-- Modal Editar Empenho -->
 <div class="modal fade" id="modalEditarEmpenho" tabindex="-1" aria-labelledby="modalLabelEditarEmpenho" aria-hidden="true">
@@ -1687,7 +1714,8 @@ document.getElementById("sum_diferenca").innerText           = "<?= number_forma
     </div>
   </div>
 </div>
-
+<?php endif; ?>
+<?php if($pode_importar): ?>
 <!-- Modal de Importação de Empenhos -->
 <div class="modal fade" id="modalImportarEmpenhos" tabindex="-1">
   <div class="modal-dialog">
@@ -1748,6 +1776,7 @@ document.getElementById("sum_diferenca").innerText           = "<?= number_forma
         </div>
 
         <div class="modal-footer">
+	  <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
           <button type="submit" class="btn btn-primary">Importar</button>
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
         </div>
@@ -1756,7 +1785,7 @@ document.getElementById("sum_diferenca").innerText           = "<?= number_forma
     </div>
   </div>
 </div>
-
+<?php endif; ?>
 
 
 <script>

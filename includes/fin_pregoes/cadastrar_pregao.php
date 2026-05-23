@@ -1,6 +1,23 @@
 <?php
 session_start();
 header('Content-Type: application/json');
+$pagina_id = 24;
+require_once('../api/seguranca_json_cadastrar.php');
+
+//CSRF
+if (
+    empty($_POST['csrf_token']) ||
+    empty($_SESSION['csrf_token']) ||
+    !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])
+) {
+    http_response_code(403);
+    echo json_encode([
+        'success' => false,
+        'message' => 'Token inválido'
+    ]);
+    exit;
+}
+
 include_once("../../conexao/config.php");
 include_once("../../includes/funcoes/log.php");
 
@@ -80,7 +97,7 @@ if (!$stmt) {
 
 $stmt->bind_param(
     "sssssssssss",
-    $descricao_pregao
+    $descricao_pregao,
     $batalhao,
     $nmr_pregao,
     $ano_pregao,
@@ -139,7 +156,10 @@ if ($stmt->execute()) {
             }
         }
     }
-
+	
+		// 🔒 NOVO TOKEN
+$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+	
     echo json_encode([
         "status" => "sucesso",
         "mensagem" => "Pregão cadastrado com sucesso!"

@@ -1,10 +1,21 @@
 <?php
-ini_set('memory_limit', '512M');
-set_time_limit(0);
-ini_set('display_errors', 0);
-error_reporting(E_ALL & ~E_NOTICE);
-
 session_start();
+$pagina_id = 46;
+
+require_once('../api/seguranca_json_importar.php');
+
+// =============================
+// 🔒 CSRF
+// =============================
+if (
+    empty($_POST['csrf_token']) ||
+    empty($_SESSION['csrf_token']) ||
+    !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])
+) {
+    http_response_code(403);
+    resposta_json_and_exit(['status' => 'erro', 'mensagem' => 'Token inválido']);
+}
+
 require '../../conexao/config.php';
 require '../funcoes/log.php';
 require '../../vendor/autoload.php';
@@ -237,6 +248,8 @@ foreach ($rows as $i => $linha) {
     $importados++;
 }
 
+// 🔒 NOVO TOKEN
+$_SESSION['csrf_token'] = bin2hex(random_bytes(32)); //OBSERVAR SE VAI FUNCIONAR
 $resposta["mensagem"] = "Total importado: $importados";
 echo json_encode($resposta);
 exit;

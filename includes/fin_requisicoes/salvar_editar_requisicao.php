@@ -1,5 +1,23 @@
 <?php
 session_start();
+
+$pagina_id = 60;
+require_once('../api/seguranca_json_editar.php');
+
+//CSRF
+if (
+    empty($_POST['csrf_token']) ||
+    empty($_SESSION['csrf_token']) ||
+    !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])
+) {
+    http_response_code(403);
+    echo json_encode([
+        'success' => false,
+        'message' => 'Token inválido'
+    ]);
+    exit;
+}
+
 include '../../conexao/config.php';
 include '../funcoes/log.php';
 
@@ -240,6 +258,9 @@ $stmtValor->close();
 // ===============================
 
 $descricao = "Requisição editada. ID: $id | Novo valor empenhado: $valor_empenhado";
+
+		// 🔒 NOVO TOKEN
+$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 
 registrar_log($conexao, $usuarioLogado, "Editar Requisição", $descricao, $id);
 

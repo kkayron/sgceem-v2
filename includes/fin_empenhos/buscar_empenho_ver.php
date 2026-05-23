@@ -2,6 +2,10 @@
 // includes/fin_empenhos/buscar_empenho_ver.php
 include '../../conexao/config.php';
 
+$pagina_id = 24;
+
+require_once('../api/seguranca_json.php');
+
 $id = intval($_GET['id'] ?? 0);
 if (!$id) {
     echo json_encode(['sucesso' => false, 'mensagem' => 'ID inválido']);

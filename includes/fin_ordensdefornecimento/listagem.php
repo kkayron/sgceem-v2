@@ -1,6 +1,32 @@
 <?php
 header('Content-Type: text/html; charset=utf-8');
 if (session_status() === PHP_SESSION_NONE) session_start();
+require_once '../api/seguranca.php';
+
+$permissoes = verificarPermissao([46]);
+
+$pode_cadastrar = $permissoes['cadastrar'];
+$pode_editar    = $permissoes['editar'];
+$pode_deletar   = $permissoes['deletar'];
+$pode_importar  = $permissoes['importar'];
+$pode_exportar  = $permissoes['exportar'];
+
+if (!isset($_SESSION['usuario_id'])) {
+  http_response_code(401);
+  echo "<div class='alert alert-danger'>Sessão expirada. Faça login novamente.</div>";
+  exit;
+}
+
+// BLOQUEAR ACESSO DIRETO VIA URL
+if (
+    !isset($_SERVER['HTTP_X_REQUESTED_WITH']) ||
+    strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) !== 'xmlhttprequest'
+) {
+    http_response_code(403);
+    echo "<div class='alert alert-danger'>Acesso direto não permitido.</div>";
+    exit;
+}
+
 include_once('../../conexao/config.php');
 
 // ==============================
@@ -269,13 +295,16 @@ $queryString = http_build_query($paramsGET);
         <h6 class="text-muted">Listagem das ordens de fornecimento cadastradas.</h6>
       </div>
       <div>
+		  <?php if($pode_cadastrar): ?>
         <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalCadastrarOrdem">
           <i class="fa fa-plus me-1"></i> Nova Ordem de Fornecimento
         </button>
-          
+          <?php endif; ?>
+		  <?php if($pode_importar): ?>
           <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalImportarOrdens">
   Importar Ordem de Fornecimento
 </button>
+		  <?php endif; ?>
       </div>
     </div>
 
@@ -519,6 +548,7 @@ if (!empty($ordem['id_empenho'])) {
                 <button class="btn btn-outline-secondary btn-sm" data-bs-toggle="collapse" data-bs-target="#pedidosOrdem<?= $ordem['id'] ?>">
                   <i class="fa fa-eye me-1"></i> Ver Pedidos
                 </button>
+				  <?php if($pode_editar): ?>
                <button 
   class="btn btn-outline-warning btn-sm" 
   data-bs-toggle="modal" 
@@ -526,6 +556,8 @@ if (!empty($ordem['id_empenho'])) {
   onclick="editarOrdem(<?= $ordem['id'] ?>)">
   <i class="fas fa-edit me-1"></i> Editar
 </button>
+				  <?php endif;?> 
+				  <?php if($pode_deletar): ?>
                   <button type="button"
                 class="btn btn-sm btn-outline-danger d-flex align-items-center btn-deletar-of"
                 data-id="<?= $ordem['id'] ?>"
@@ -534,6 +566,7 @@ if (!empty($ordem['id_empenho'])) {
                 title="Remover">
                 <i class="fa fa-times"></i>
               </button>
+				  <?php endif;?> 
               </div>
             </div>
 
@@ -602,6 +635,7 @@ if (!empty($ordem['id_empenho'])) {
     </div>
   </div>
 </div>
+<?php if($pode_cadastrar): ?>
 <!-- Modal de Cadastro da Ordem de Fornecimento -->
 <div class="modal fade" id="modalCadastrarOrdem" tabindex="-1" aria-labelledby="modalCadastrarOrdemLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-xl">
@@ -805,6 +839,7 @@ if (!empty($ordem['id_empenho'])) {
 
           <!-- Botão de envio -->
           <div class="d-grid">
+	        <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
             <button type="submit" class="btn btn-success mt-3">Cadastrar Ordem</button>
           </div>
 
@@ -813,8 +848,8 @@ if (!empty($ordem['id_empenho'])) {
     </div>
   </div>
 </div>
-
-
+<?php endif; ?>
+<?php if($pode_editar): ?>
 <!-- Modal de Edição da Ordem de Fornecimento -->
 <div class="modal fade" id="modalEditarOrdem" tabindex="-1" aria-labelledby="modalEditarOrdemLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-xl">
@@ -952,6 +987,7 @@ if (!empty($ordem['id_empenho'])) {
           </div>
 
           <div class="d-grid">
+	        <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
             <button type="submit" class="btn btn-warning mt-3">Salvar Alterações</button>
           </div>
 
@@ -960,7 +996,8 @@ if (!empty($ordem['id_empenho'])) {
     </div>
   </div>
 </div>
-
+<?php endif; ?>
+<?php if($pode_importar): ?>
 <!-- Modal de Importação de Ordens -->
 <div class="modal fade" id="modalImportarOrdens" tabindex="-1">
   <div class="modal-dialog">
@@ -1027,6 +1064,7 @@ if (!empty($ordem['id_empenho'])) {
         </div>
 
         <div class="modal-footer">
+	        <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
           <button type="submit" class="btn btn-primary">Importar</button>
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
             Cancelar
@@ -1036,7 +1074,7 @@ if (!empty($ordem['id_empenho'])) {
     </div>
   </div>
 </div>
-
+<?php endif; ?>
 
 
 

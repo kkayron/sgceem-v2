@@ -1,6 +1,35 @@
 <?php
 header('Content-Type: text/html; charset=utf-8');
 session_start();
+
+require_once '../api/seguranca.php';
+
+$permissoes = verificarPermissao([60]);
+
+$pode_cadastrar = $permissoes['cadastrar'];
+$pode_editar    = $permissoes['editar'];
+$pode_deletar   = $permissoes['deletar'];
+$pode_importar  = $permissoes['importar'];
+$pode_exportar  = $permissoes['exportar'];
+$pode_autorizar  = $permissoes['autorizar'];
+
+if (!isset($_SESSION['usuario_id'])) {
+  http_response_code(401);
+  echo "<div class='alert alert-danger'>Sessão expirada. Faça login novamente.</div>";
+  exit;
+}
+
+// BLOQUEAR ACESSO DIRETO VIA URL
+if (
+    !isset($_SERVER['HTTP_X_REQUESTED_WITH']) ||
+    strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) !== 'xmlhttprequest'
+) {
+    http_response_code(403);
+    echo "<div class='alert alert-danger'>Acesso direto não permitido.</div>";
+    exit;
+}
+
+
 include_once('../../conexao/config.php');
 
 // ============================================================================
@@ -289,13 +318,17 @@ $queryString = http_build_query($paramsGET);
         <h6 class="text-muted">Listagem dos pregões realizados ou em andamento.</h6>
       </div>
       <div>
+		  <?php if($pode_cadastrar): ?>
         <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalCadastrarRequisicao">
           <i class="fa fa-plus me-1"></i> Cadastrar Requisição
         </button>
+		  <?php endif; ?>
+		  <?php if($pode_exportar): ?>
           <!-- Botão Excel -->
 <button id="btnExportarExcelRequisicao" class="btn btn-success">
   <i class="fas fa-file-excel"></i> Exportar Excel
 </button>
+		  <?php endif; ?>
       </div>
     </div>
 
@@ -558,17 +591,19 @@ $batalhao_filtro = $_GET['batalhao'] ?? '';
            
   </ul>
 </div>
+				<?php if($pode_editar): ?>
 				<button class="btn btn-sm btn-outline-warning"
                         onclick="editarRequisicao(<?= $requisicao['id'] ?>)"
                         data-bs-toggle="modal"
                         data-bs-target="#modalEditarRequisicao">
                   <i class="fas fa-edit me-1"></i> Editar
                 </button>
-
-
+<?php endif; ?>
+<?php if($pode_cadastrar): ?>
               <?php if ($requisicao['empenho_gerado'] !== 'sim'): ?>
 
                 
+				
                 <button class="btn btn-sm btn-outline-success"
                         onclick="gerarEmpenho(<?= $requisicao['id'] ?>)"
                         data-bs-toggle="modal"
@@ -586,13 +621,17 @@ $batalhao_filtro = $_GET['batalhao'] ?? '';
                 </button>
 
               <?php endif; ?>
+              <?php endif; ?>
 
+<?php if($pode_deletar): ?>
               <button class="btn btn-sm btn-outline-danger btn-deletar-requisicao"
                       data-id="<?= $requisicao['id'] ?>"
+				      data-token="<?= htmlspecialchars($_SESSION['csrf_token']) ?>"
                       onclick="deletarRequisicao(this)">
                 <i class="fa fa-times"></i>
               </button>
 
+              <?php endif; ?>
             </div>
 
             <!-- ITENS DA REQUISIÇÃO -->
@@ -656,7 +695,7 @@ $batalhao_filtro = $_GET['batalhao'] ?? '';
 </div>
 
 </div>
-
+<?php if($pode_cadastrar): ?>
 <!-- Modal de Cadastro Requisição -->
 <div class="modal fade" id="modalCadastrarRequisicao" tabindex="-1" aria-labelledby="modalLabelCadastrarRequisicao" aria-hidden="true">
 <div class="modal-dialog modal-dialog-centered modal-xl">
@@ -785,6 +824,7 @@ Adicionar item à requisição
 </div>
 
 <div class="text-end mt-3">
+<input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
 <button type="submit" class="btn btn-success">
 Cadastrar Requisição
 </button>
@@ -796,8 +836,8 @@ Cadastrar Requisição
 </div>
 </div>
 </div>
-
-
+<?php endif; ?>
+<?php if($pode_editar): ?>
 <!-- Modal de Edição Requisição -->
 <div class="modal fade" id="modalEditarRequisicao" tabindex="-1" aria-labelledby="modalLabelEditarRequisicao" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-lg">
@@ -893,6 +933,7 @@ Cadastrar Requisição
 </div>
 
 
+<input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
           <button type="submit" class="btn btn-success">Salvar alterações</button>
           <input type="hidden" id="editar-id-requisicao" name="id">
         </form>
@@ -900,8 +941,8 @@ Cadastrar Requisição
     </div>
   </div>
 </div>
-
-
+<?php endif; ?>
+<?php if($pode_editar): ?>
 <!-- Modal de Gerar Empenho -->
 <div class="modal fade" id="modalGerarEmpenho" tabindex="-1" aria-labelledby="modalLabelGerarEmpenho" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
@@ -962,7 +1003,7 @@ Cadastrar Requisição
 
           <!-- ID da requisição -->
           <input type="hidden" id="gerar-id-requisicao" name="id">
-
+<input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
           <button type="submit" class="btn btn-success w-100">
             <i class="fas fa-file-invoice-dollar me-1"></i>
             Salvar Empenho
@@ -975,7 +1016,7 @@ Cadastrar Requisição
     </div>
   </div>
 </div>
-
+<?php endif; ?>
 <!-- Modal do ver requisição -->
 <div class="modal fade" id="modalVerRequisicao" tabindex="-1" aria-labelledby="modalVerRequisicaoLabel" aria-hidden="true">
   <div class="modal-dialog modal-xl modal-dialog-scrollable">

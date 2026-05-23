@@ -49,45 +49,70 @@ window.inicializarPedidosFornecedores = function () {
     });
   }
 
+window.toggleAutorizacaoPedidoFornecedor = function(botao) {
 
-    
-    window.toggleAutorizacaoPedidoFornecedor = function(botao) {
-  const id = botao.getAttribute('data-id');
-  const autorizacaoAtual = botao.getAttribute('data-autorizacao');
+  const id = botao.dataset.id;
+  const token = botao.dataset.token;
+  const statusAtual = botao.dataset.status;
 
-  const novaAutorizacao = autorizacaoAtual === 'sim' ? 'nao' : 'sim';
+  // 🔄 alterna status
+  const novaAutorizacao = statusAtual === 'sim' ? 'nao' : 'sim';
 
   Swal.fire({
     title: 'Alterar autorização?',
-    text: novaAutorizacao === 'sim'
+    text: novaAutorizacao === '1'
       ? 'Deseja AUTORIZAR este pedido do fornecedor?'
-      : 'Deseja marcar este pedido do fornecedor como NÃO AUTORIZADO?',
+      : 'Deseja marcar este pedido como NÃO AUTORIZADO?',
     icon: 'question',
     showCancelButton: true,
     confirmButtonText: 'Sim, confirmar',
     cancelButtonText: 'Cancelar'
   }).then((result) => {
+
     if (result.isConfirmed) {
+
+      // 🔒 evita múltiplos cliques
+      botao.disabled = true;
+
       const formData = new FormData();
       formData.append('id', id);
       formData.append('autorizacao', novaAutorizacao);
+      formData.append('csrf_token', token);
 
       fetch('includes/fin_pedidos/alterar_autorizacao.php', {
         method: 'POST',
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest'
+        },
         body: formData
       })
       .then(response => response.json())
       .then(data => {
+
+        botao.disabled = false;
+
         if (data.success) {
+
+          // 🔄 atualiza botão sem recarregar
+          botao.dataset.status = novaAutorizacao;
+
+          if (novaAutorizacao === 'sim') {
+            botao.classList.remove('btn-danger');
+            botao.classList.add('btn-success');
+            botao.innerHTML = '<i class="fas fa-check-circle me-1"></i> Autorizado';
+          } else {
+            botao.classList.remove('btn-success');
+            botao.classList.add('btn-danger');
+            botao.innerHTML = '<i class="fas fa-ban me-1"></i> Não autorizado';
+          }
+
           Swal.fire({
             icon: 'success',
             title: 'Atualizado!',
-            text: 'Autorização atualizada com sucesso.',
-            timer: 1500,
+            timer: 1200,
             showConfirmButton: false
-          }).then(() => {
-            carregarPagina('includes/fin_pedidos/listagem.php');
           });
+
         } else {
           Swal.fire({
             icon: 'error',
@@ -97,6 +122,9 @@ window.inicializarPedidosFornecedores = function () {
         }
       })
       .catch(error => {
+
+        botao.disabled = false;
+
         Swal.fire({
           icon: 'error',
           title: 'Erro de rede',
@@ -107,11 +135,14 @@ window.inicializarPedidosFornecedores = function () {
   });
 };
 
-// Delegação dos botões
-document.querySelectorAll('.btn-toggle-autorizacao-forn').forEach(botao => {
-  botao.addEventListener('click', function() {
-    toggleAutorizacaoPedidoFornecedor(this);
-  });
+// =============================
+// EVENTO (delegação segura)
+// =============================
+document.addEventListener('click', function(e) {
+  const botao = e.target.closest('.btn-autorizar');
+  if (botao) {
+    toggleAutorizacaoPedidoFornecedor(botao);
+  }
 });
     
     
@@ -601,12 +632,11 @@ if (formCadastrar) {
       });
   });
 }
-
-
-    
     
 window.deletarPedido = function(botao) {
-  const id = botao.getAttribute('data-id');
+
+  const id = botao.dataset.id;
+  const token = botao.dataset.token; //  pega o token
 
   Swal.fire({
     title: 'Deletar Pedido?',
@@ -616,16 +646,28 @@ window.deletarPedido = function(botao) {
     confirmButtonText: 'Sim, deletar',
     cancelButtonText: 'Cancelar'
   }).then((result) => {
+
     if (result.isConfirmed) {
+
+      // 🔒 evita múltiplos cliques
+      botao.disabled = true;
+
       const formData = new FormData();
       formData.append('id', id);
+      formData.append('csrf_token', token); // 🔒 envia o token
 
       fetch('includes/fin_pedidos/deletar_pedido.php', {
         method: 'POST',
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest' // 🔒 reforço
+        },
         body: formData
       })
       .then(response => response.json())
       .then(data => {
+
+        botao.disabled = false;
+
         if (data.success) {
           Swal.fire({
             icon: 'success',
@@ -645,6 +687,9 @@ window.deletarPedido = function(botao) {
         }
       })
       .catch(error => {
+
+        botao.disabled = false;
+
         Swal.fire({
           icon: 'error',
           title: 'Erro de rede',
@@ -655,11 +700,14 @@ window.deletarPedido = function(botao) {
   });
 };
 
-// Delegar evento aos botões de deletar
-document.querySelectorAll('.btn-deletar-pedido').forEach(botao => {
-  botao.addEventListener('click', function() {
-    deletarPedido(this);
-  });
+// =============================
+// EVENTO (melhor que querySelectorAll)
+// =============================
+document.addEventListener('click', function(e) {
+  const botao = e.target.closest('.btn-deletar-pedido');
+  if (botao) {
+    deletarPedido(botao);
+  }
 });
 
     

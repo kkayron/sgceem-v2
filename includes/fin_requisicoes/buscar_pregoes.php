@@ -1,4 +1,7 @@
 <?php
+$pagina_id = 60;
+require_once('../api/seguranca_json.php');
+
 include '../../config/conexao.php';
 header('Content-Type: application/json');
 

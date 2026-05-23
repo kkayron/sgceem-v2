@@ -307,55 +307,60 @@ form.addEventListener('submit', function (e) {
 //DELETAR FORNECEDOR
 
   window.deletarFORN = function(botao) {
-    const id = botao.getAttribute('data-id');
+  const id = botao.getAttribute('data-id');
+  const token = botao.getAttribute('data-token');  
 
-    Swal.fire({
-      title: 'Deletar fornecedor?',
-      text: "Essa ação não poderá ser desfeita. Deseja realmente excluir este FORNECEDOR e todos os registros relacionados?",
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonText: 'Sim, deletar',
-      cancelButtonText: 'Cancelar'
-    }).then((result) => {
-      if (result.isConfirmed) {
-        const formData = new FormData();
-        formData.append('id', id);
+  Swal.fire({
+    title: 'Deletar fornecedor?',
+    text: "Essa ação não poderá ser desfeita. Deseja realmente excluir este FORNECEDOR e todos os registros relacionados?",
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonText: 'Sim, deletar',
+    cancelButtonText: 'Cancelar'
+  }).then((result) => {
+    if (result.isConfirmed) {
 
-        fetch('includes/fin_fornecedores/deletar_forn.php', {  // <- ajuste o caminho conforme seu projeto
-          method: 'POST',
-          body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-          if (data.success) {
-            Swal.fire({
-              icon: 'success',
-              title: 'Deletado!',
-              text: 'Fornecedor excluído com sucesso.',
-              timer: 1500,
-              showConfirmButton: false
-            }).then(() => {
-              // Atualiza a página ou remove o item da lista
-              carregarPagina('includes/fin_fornecedores/listagem.php');  // <- ajuste conforme necessário
-            });
-          } else {
-            Swal.fire({
-              icon: 'error',
-              title: 'Erro',
-              text: data.message || 'Erro ao deletar fornecedor.'
-            });
-          }
-        })
-        .catch(error => {
+      const formData = new FormData();
+      formData.append('id', id);
+      formData.append('csrf_token', token); 
+
+      fetch('includes/fin_fornecedores/deletar_forn.php', {
+        method: 'POST',
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest' 
+        },
+        body: formData
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          Swal.fire({
+            icon: 'success',
+            title: 'Deletado!',
+            text: 'Fornecedor excluído com sucesso.',
+            timer: 1500,
+            showConfirmButton: false
+          }).then(() => {
+            carregarPagina('includes/fin_fornecedores/listagem.php');
+          });
+        } else {
           Swal.fire({
             icon: 'error',
-            title: 'Erro de rede',
-            text: error.message
+            title: 'Erro',
+            text: data.message || 'Erro ao deletar fornecedor.'
           });
+        }
+      })
+      .catch(error => {
+        Swal.fire({
+          icon: 'error',
+          title: 'Erro de rede',
+          text: error.message
         });
-      }
-    });
-  }
+      });
+    }
+  });
+}
 
   // Delega o evento para todos os botões com a classe deletar-os
   document.querySelectorAll('.btn-deletar-forn').forEach(botao => {

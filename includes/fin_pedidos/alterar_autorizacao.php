@@ -1,12 +1,27 @@
 <?php
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
 session_start();
-include_once("../../conexao/config.php");
-include_once("../../includes/funcoes/log_pedido_financeiro.php");
 
 header('Content-Type: application/json; charset=utf-8');
+
+//CSRF
+if (
+    empty($_POST['csrf_token']) ||
+    empty($_SESSION['csrf_token']) ||
+    !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])
+) {
+    http_response_code(403);
+    echo json_encode([
+        'success' => false,
+        'message' => 'Token inválido'
+    ]);
+    exit;
+}
+
+$pagina_ids = [17, 25];
+require_once('../api/seguranca_json_autorizar.php');
+
+require_once '../../conexao/config.php';
+include_once("../../includes/funcoes/log_pedido_financeiro.php");
 
 $id = $_POST['id'] ?? null;
 $autorizacao = $_POST['autorizacao'] ?? null;
@@ -64,6 +79,9 @@ if ($stmt_update->execute()) {
 
     $id_os     = $pedido['id_os'];
     $id_frota  = $pedido['id_frota'];
+	
+	// 🔒 NOVO TOKEN
+$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 
     // ============================
     // REGISTRAR LOG (FINANCEIRO)

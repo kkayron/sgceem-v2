@@ -1,6 +1,31 @@
 <?php
 session_start();
 header('Content-Type: application/json; charset=utf-8');
+$pagina_id = 46;
+
+require_once('../api/seguranca_json_cadastrar.php');
+
+// =============================
+// 🔒 CSRF
+// =============================
+if (
+    empty($_POST['csrf_token']) ||
+    empty($_SESSION['csrf_token']) ||
+    !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])
+) {
+    http_response_code(403);
+    resposta_json_and_exit(['status' => 'erro', 'mensagem' => 'Token inválido']);
+}
+
+// =============================
+// 🔒 MÉTODO
+// =============================
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    http_response_code(405);
+    echo json_encode(['status'=>'erro','mensagem'=>'Método não permitido']);
+    exit;
+}
+
 include_once("../../conexao/config.php");
 include_once("../../includes/funcoes/log.php");
 
@@ -172,6 +197,9 @@ $stmtLink->close();
 // 3) registrar log
 $descricao = "Ordem #{$id_ordem} criada vinculando pedidos: [" . implode(", ", $pedidos) . "]";
 registrar_log($conexao, $usuarioLogado, 'Cadastrar Ordem de Fornecimento', $descricao, $id_ordem);
+
+// 🔒 NOVO TOKEN
+$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 
 // sucesso
 echo json_encode([

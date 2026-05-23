@@ -7,7 +7,7 @@ include_once('../../conexao/config.php');
 
 require_once '../api/seguranca.php';
 
-$permissoes = verificarPermissao([17, 32]);
+$permissoes = verificarPermissao([16, 32]);
 
 $pode_cadastrar = $permissoes['cadastrar'];
 $pode_editar    = $permissoes['editar'];

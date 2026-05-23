@@ -1,6 +1,11 @@
 <?php
-include '../../conexao/config.php';
 header('Content-Type: application/json; charset=utf-8');
+
+$pagina_ids = [17, 25];
+require_once('../api/seguranca_json.php');
+
+
+include '../../conexao/config.php';
 
 $id_os_atual = intval($_GET['id_os_atual'] ?? 0);
 

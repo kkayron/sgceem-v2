@@ -436,6 +436,41 @@ if (formAbrirOS) {
     });
   }); // <-- ESTA CHAVE FECHA O formAbrirOS.addEventListener
 } // <-- ESTA CHAVE FECHA O if (formAbrirOS)
+
+// CARREGAR PLANOS DE MANUTENÇÃO DA VIATURA NA OS
+const selectFrotaOS = document.getElementById('id_frota');
+const blocoMntProgramada = document.getElementById('bloco-mnt-programada');
+const areaPlanosMntOS = document.getElementById('area-planos-mnt-os');
+
+if (selectFrotaOS) {
+  selectFrotaOS.addEventListener('change', function () {
+    const idFrota = this.value;
+
+    if (!idFrota || !areaPlanosMntOS) return;
+
+    blocoMntProgramada.style.display = 'block';
+
+    areaPlanosMntOS.innerHTML = `
+      <div class="text-center py-3">
+        <div class="spinner-border text-warning" role="status"></div>
+        <div class="mt-2 text-muted">Carregando manutenções programadas...</div>
+      </div>
+    `;
+
+    fetch(`includes/os/buscar_planos_mnt_frota.php?id_frota=${idFrota}`)
+      .then(res => res.text())
+      .then(html => {
+        areaPlanosMntOS.innerHTML = html;
+      })
+      .catch(err => {
+        areaPlanosMntOS.innerHTML = `
+          <div class="alert alert-danger mb-0">
+            Erro ao carregar planos de manutenção: ${err.message}
+          </div>
+        `;
+      });
+  });
+}
   
 
 
@@ -685,182 +720,325 @@ if (modalEditarOS) {
 
 // Função para editar OS
 window.editarOS = function (id) {
-    const modalTitle = document.querySelector('#modalEditarOS .modal-title');
-    const form = document.getElementById('form-editar-os');
-    const nomeBatalhao = document.getElementById('nomeBatalhaoOS');
-    if (!form || !nomeBatalhao) return;
+fotosSelecionadasOS = [];
+fotosExcluirOS = [];
 
-    modalTitle.textContent = `Editando Ordem de Serviço Nmr #${id}`;
+if (inputFotosOS) inputFotosOS.value = '';
+if (previewFotosOS) previewFotosOS.innerHTML = '';
 
-    fetch(`includes/os/buscar_os.php?id=${id}`)
-        .then(res => res.json())
-        .then(dados => {
-            if (!dados.sucesso) {
-                alert('Erro ao buscar dados da OS.');
-                return;
+const inputFotosExcluir = document.getElementById('fotos_excluir');
+if (inputFotosExcluir) inputFotosExcluir.value = '';
+  const modalTitle = document.querySelector('#modalEditarOS .modal-title');
+  const form = document.getElementById('form-editar-os');
+  const nomeBatalhao = document.getElementById('nomeBatalhaoOS');
+
+  if (!form || !nomeBatalhao) return;
+
+  modalTitle.textContent = `Editando Ordem de Serviço Nmr #${id}`;
+
+  fetch(`includes/os/buscar_os.php?id=${id}`)
+    .then(res => res.json())
+    .then(dados => {
+      if (!dados.sucesso) {
+        alert('Erro ao buscar dados da OS.');
+        return;
+      }
+
+      form.setAttribute('data-id', id);
+
+      form.querySelector('[name="os_numero"]').value = dados.os.id || '';
+      form.querySelector('[name="data_abertura"]').value = dados.os.data_abertura || '';
+      form.querySelector('[name="data_encerramento"]').value = dados.os.data_encerramento || '';
+      form.querySelector('[name="solicitante"]').value = dados.os.solicitante || '';
+      form.querySelector('[name="situacao_os"]').value = dados.os.status || '';
+      form.querySelector('[name="prefixo"]').value = dados.os.prefixo_sga || '';
+      form.querySelector('[name="odometro"]').value = dados.os.odometro_horimetro || '';
+      form.querySelector('[name="tipo_mnt"]').value = dados.os.tipo_mnt || '';
+      form.querySelector('[name="observacoes"]').value = dados.os.observacao || '';
+      form.querySelector('[name="falhas_solicitadas"]').value = dados.os.problema || '';
+      form.querySelector('[name="valorND30"]').value = dados.os.valornd30 || '';
+      form.querySelector('[name="valorND39"]').value = dados.os.valornd39 || '';
+      form.querySelector('[name="valorTotalGasto"]').value = dados.os.valorTOTAL || '';
+      form.querySelector('[name="secao_rspns"]').value = dados.os.secao_rspns || '';
+
+      nomeBatalhao.textContent = dados.os.nome_batalhao || 'Batalhão não informado';
+
+      const localSelect = form.querySelector('[name="local_mnt"]');
+
+      if (localSelect) {
+        localSelect.innerHTML = '<option value="" disabled selected>Selecione o local da manutenção</option>';
+
+        if (Array.isArray(dados.locais) && dados.locais.length > 0) {
+          dados.locais.forEach(l => {
+            const opt = document.createElement('option');
+            opt.value = l.destino;
+            opt.textContent = `${l.destino} - ${l.nome_batalhao}`;
+
+            if (l.destino === dados.os.local_os) {
+              opt.selected = true;
             }
 
-            form.setAttribute('data-id', id);
+            localSelect.appendChild(opt);
+          });
+        }
+      }
 
-            // === Preencher campos principais ===
-            form.querySelector('[name="os_numero"]').value = dados.os.id || '';
-            form.querySelector('[name="data_abertura"]').value = dados.os.data_abertura || '';
-            form.querySelector('[name="data_encerramento"]').value = dados.os.data_encerramento || '';
-            form.querySelector('[name="solicitante"]').value = dados.os.solicitante || '';
-            form.querySelector('[name="situacao_os"]').value = dados.os.status || '';
-            form.querySelector('[name="prefixo"]').value = dados.os.prefixo_sga || '';
-            form.querySelector('[name="odometro"]').value = dados.os.odometro_horimetro || '';
-            form.querySelector('[name="tipo_mnt"]').value = dados.os.tipo_mnt || '';
-            form.querySelector('[name="observacoes"]').value = dados.os.observacao || '';
-            form.querySelector('[name="falhas_solicitadas"]').value = dados.os.problema || '';
-            form.querySelector('[name="valorND30"]').value = dados.os.valornd30 || '';
-            form.querySelector('[name="valorND39"]').value = dados.os.valornd39 || '';
-            form.querySelector('[name="valorTotalGasto"]').value = dados.os.valorTOTAL || '';
-            form.querySelector('[name="secao_rspns"]').value = dados.os.secao_rspns || '';
+      const preventiva = dados.os.manutencao_preventiva == 1;
+      const chkPreventiva = document.getElementById('manutencaoPreventiva');
 
-            // === Nome do batalhão no topo ===
-            nomeBatalhao.textContent = dados.os.nome_batalhao || 'Batalhão não informado';
+      if (chkPreventiva) {
+        chkPreventiva.checked = preventiva;
+      }
 
-            // === Preencher select de locais da manutenção ===
-            const localSelect = form.querySelector('[name="local_mnt"]');
-            if (localSelect) {
-                localSelect.innerHTML = '<option value="" disabled selected>Selecione o local da manutenção</option>';
-                if (Array.isArray(dados.locais) && dados.locais.length > 0) {
-                    dados.locais.forEach(l => {
-                        const opt = document.createElement('option');
-                        opt.value = l.destino;
-                        opt.textContent = `${l.destino} - ${l.nome_batalhao}`;
-                        if (l.destino === dados.os.local_os) {
-                            opt.selected = true;
-                        }
-                        localSelect.appendChild(opt);
-                    });
-                }
-            }
+      const dadosPreventiva = document.getElementById('dadosPreventiva');
 
-            // === Preventiva ===
-            const preventiva = dados.os.manutencao_preventiva == 1;
-            const chkPreventiva = document.getElementById('manutencaoPreventiva');
-            if (chkPreventiva) chkPreventiva.checked = preventiva;
-            const dadosPreventiva = document.getElementById('dadosPreventiva');
-            if (dadosPreventiva) dadosPreventiva.style.display = preventiva ? 'block' : 'none';
+      if (dadosPreventiva) {
+        dadosPreventiva.style.display = preventiva ? 'block' : 'none';
+      }
 
-            if (form) {
-                form.querySelector('[name="proxima_mnt_tempo"]').value = dados.os.prox_mnt_prev_odo || '';
-                form.querySelector('[name="proxima_mnt_valor"]').value = dados.os.prox_mnt_prev_hor || '';
-                form.querySelector('[name="trocas_realizadas"]').value = dados.os.trocas_realizadas || '';
-            }
+      form.querySelector('[name="proxima_mnt_tempo"]').value = dados.os.prox_mnt_prev_odo || '';
+      form.querySelector('[name="proxima_mnt_valor"]').value = dados.os.prox_mnt_prev_hor || '';
+      form.querySelector('[name="trocas_realizadas"]').value = dados.os.trocas_realizadas || '';
 
-            // === Limpar containers dinâmicos ===
-            ['falhasContainer','pessoalContainer','servicosContainer','materiaisContainer'].forEach(id => {
-                document.getElementById(id).innerHTML = '';
-            });
+      const blocoEditMnt = document.getElementById('bloco-edit-mnt-programada');
+      const areaEditMnt = document.getElementById('area-edit-planos-mnt-os');
 
-            // === Preencher dados dinâmicos ===
-            if (Array.isArray(dados.falhas)) {
-                dados.falhas.forEach(f => {
-                    adicionarFalha();
-                    const last = document.getElementById('falhasContainer').lastElementChild;
-                    last.querySelector('[name="sec[]"]').value = f.secao_falha;
-                    last.querySelector('[name="falha[]"]').value = f.falha_identificada;
-                    last.querySelector('[name="militar[]"]').value = f.militar_identificou;
-                });
-            }
+      if (blocoEditMnt && areaEditMnt) {
+        blocoEditMnt.style.display = 'block';
 
-            if (Array.isArray(dados.pessoal)) {
-                dados.pessoal.forEach(p => {
-                    adicionarPessoal();
-                    const last = document.getElementById('pessoalContainer').lastElementChild;
-                    last.querySelector('[name="grad[]"]').value = p.postograd_militar;
-                    last.querySelector('[name="nome[]"]').value = p.nome_militar;
-                    last.querySelector('[name="funcao[]"]').value = p.funcao_militar;
-                    last.querySelector('[name="data[]"]').value = p.data_emprego;
-                    last.querySelector('[name="servico[]"]').value = p.servico_executado;
-                });
-            }
+        areaEditMnt.innerHTML = `
+          <div class="text-center py-3">
+            <div class="spinner-border text-warning" role="status"></div>
+            <div class="mt-2 text-muted">Carregando manutenções programadas...</div>
+          </div>
+        `;
 
-            if (Array.isArray(dados.servicos)) {
-                dados.servicos.forEach(s => {
-                    adicionarServico();
-                    const last = document.getElementById('servicosContainer').lastElementChild;
-                    last.querySelector('[name="empresa[]"]').value = s.empresa;
-                    last.querySelector('[name="execucao[]"]').value = s.rlzd_mnt;
-                    last.querySelector('[name="qtd[]"]').value = s.qtd_servico;
-                    last.querySelector('[name="valor_unt[]"]').value = s.valor_unt;
-                    last.querySelector('[name="valor_total[]"]').value = s.qtd_servico * s.valor_unt;
-                });
-            }
+        fetch(`includes/os/buscar_planos_mnt_os_editar.php?id_os=${id}`)
+          .then(res => res.text())
+          .then(html => {
+            areaEditMnt.innerHTML = html;
+          })
+          .catch(err => {
+            areaEditMnt.innerHTML = `
+              <div class="alert alert-danger mb-0">
+                Erro ao carregar manutenções programadas: ${err.message}
+              </div>
+            `;
+          });
+      }
 
-            if (Array.isArray(dados.materiais)) {
-                dados.materiais.forEach(m => {
-                    adicionarMaterial();
-                    const last = document.getElementById('materiaisContainer').lastElementChild;
-                    last.querySelector('[name="origem[]"]').value = m.origem_item;
-                    last.querySelector('[name="descricao[]"]').value = m.itens_utilizados;
-                    last.querySelector('[name="qtd_mat[]"]').value = m.quant_itens_utilizados;
-                    last.querySelector('[name="valor_unt_mat[]"]').value = m.valor_itens;
-                    last.querySelector('[name="valor_total_mat[]"]').value = m.quant_itens_utilizados * m.valor_itens;
-                });
-            }
-        })
-        .catch(err => {
-            console.error('Erro ao buscar dados da OS:', err);
-            alert('Erro ao carregar OS.');
+      ['falhasContainer', 'pessoalContainer', 'servicosContainer', 'materiaisContainer'].forEach(containerId => {
+        const container = document.getElementById(containerId);
+        if (container) container.innerHTML = '';
+      });
+
+      if (Array.isArray(dados.falhas)) {
+        dados.falhas.forEach(f => {
+          adicionarFalha();
+
+          const last = document.getElementById('falhasContainer').lastElementChild;
+
+          if (last) {
+            last.querySelector('[name="sec[]"]').value = f.secao_falha || '';
+            last.querySelector('[name="falha[]"]').value = f.falha_identificada || '';
+            last.querySelector('[name="militar[]"]').value = f.militar_identificou || '';
+          }
         });
+      }
+
+      if (Array.isArray(dados.pessoal)) {
+        dados.pessoal.forEach(p => {
+          adicionarPessoal();
+
+          const last = document.getElementById('pessoalContainer').lastElementChild;
+
+          if (last) {
+            last.querySelector('[name="grad[]"]').value = p.postograd_militar || '';
+            last.querySelector('[name="nome[]"]').value = p.nome_militar || '';
+            last.querySelector('[name="funcao[]"]').value = p.funcao_militar || '';
+            last.querySelector('[name="data[]"]').value = p.data_emprego || '';
+            last.querySelector('[name="servico[]"]').value = p.servico_executado || '';
+          }
+        });
+      }
+
+      if (Array.isArray(dados.servicos)) {
+        dados.servicos.forEach(s => {
+          adicionarServico();
+
+          const last = document.getElementById('servicosContainer').lastElementChild;
+
+          if (last) {
+            const qtd = parseFloat(s.qtd_servico) || 0;
+            const valorUnt = parseFloat(s.valor_unt) || 0;
+
+            last.querySelector('[name="empresa[]"]').value = s.empresa || '';
+            last.querySelector('[name="execucao[]"]').value = s.rlzd_mnt || '';
+            last.querySelector('[name="qtd[]"]').value = qtd;
+            last.querySelector('[name="valor_unt[]"]').value = valorUnt;
+            last.querySelector('[name="valor_total[]"]').value = (qtd * valorUnt).toFixed(2);
+          }
+        });
+      }
+
+      if (Array.isArray(dados.materiais)) {
+        dados.materiais.forEach(m => {
+          adicionarMaterial();
+
+          const last = document.getElementById('materiaisContainer').lastElementChild;
+
+          if (last) {
+            const qtd = parseFloat(m.quant_itens_utilizados) || 0;
+            const valorUnt = parseFloat(m.valor_itens) || 0;
+            const valorTotal = m.valor_total_item !== null && m.valor_total_item !== undefined && m.valor_total_item !== ''
+              ? parseFloat(m.valor_total_item)
+              : qtd * valorUnt;
+
+            last.querySelector('[name="origem[]"]').value = m.origem_item || '';
+            last.querySelector('[name="descricao[]"]').value = m.itens_utilizados || '';
+            last.querySelector('[name="qtd_mat[]"]').value = qtd;
+            last.querySelector('[name="valor_unt_mat[]"]').value = valorUnt;
+            last.querySelector('[name="valor_total_mat[]"]').value = valorTotal.toFixed(2);
+          }
+        });
+      }
+
+      if (typeof atualizarValoresTotais === 'function') {
+        atualizarValoresTotais();
+      }
+const fotosExistentesOS = document.getElementById('fotosExistentesOS');
+
+if (fotosExistentesOS) {
+  fotosExistentesOS.innerHTML = '';
+
+  if (Array.isArray(dados.fotos) && dados.fotos.length > 0) {
+    dados.fotos.forEach(foto => {
+      fotosExistentesOS.insertAdjacentHTML('beforeend', `
+        <div class="col-md-3 col-sm-6" id="foto-os-existente-${foto.id}">
+          <div class="card shadow-sm h-100">
+            <a href="${foto.caminho}" target="_blank">
+              <img src="${foto.caminho}" class="card-img-top" style="height:160px; object-fit:cover;">
+            </a>
+            <div class="card-body p-2">
+              <div class="small text-muted">${foto.data_upload || ''}</div>
+              <div class="small">${foto.legenda || ''}</div>
+
+              <button type="button" class="btn btn-danger btn-sm w-100 mt-2" onclick="marcarFotoExistenteParaExcluir(${foto.id})">
+                <i class="fas fa-trash me-1"></i> Excluir foto
+              </button>
+            </div>
+          </div>
+        </div>
+      `);
+    });
+  } else {
+    fotosExistentesOS.innerHTML = `
+      <div class="col-12">
+        <div class="alert alert-secondary py-2 mb-0">
+          Nenhuma foto enviada para esta OS.
+        </div>
+      </div>
+    `;
+  }
+}
+
+window.marcarFotoExistenteParaExcluir = function(idFoto) {
+  if (!fotosExcluirOS.includes(idFoto)) {
+    fotosExcluirOS.push(idFoto);
+  }
+
+  const inputFotosExcluir = document.getElementById('fotos_excluir');
+  if (inputFotosExcluir) {
+    inputFotosExcluir.value = fotosExcluirOS.join(',');
+  }
+
+  const card = document.getElementById(`foto-os-existente-${idFoto}`);
+
+  if (card) {
+    card.innerHTML = `
+      <div class="alert alert-danger h-100 d-flex flex-column justify-content-center align-items-center text-center">
+        <div class="fw-bold mb-2">Foto marcada para exclusão</div>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="desmarcarFotoExistenteOS(${idFoto})">
+          Desfazer
+        </button>
+      </div>
+    `;
+  }
 };
 
+window.desmarcarFotoExistenteOS = function(idFoto) {
+  fotosExcluirOS = fotosExcluirOS.filter(id => id !== idFoto);
+
+  const inputFotosExcluir = document.getElementById('fotos_excluir');
+  if (inputFotosExcluir) {
+    inputFotosExcluir.value = fotosExcluirOS.join(',');
+  }
+
+  editarOS(formEditarOS.getAttribute('data-id'));
+};
+	  
+    })
+    .catch(err => {
+      console.error('Erro ao buscar dados da OS:', err);
+      alert('Erro ao carregar OS.');
+    });
+};
 
 const formEditarOS = document.getElementById('form-editar-os');
 
 if (formEditarOS) {
-  // ENVIAR OS DADOS PARA O BANCO DE DADOS
   formEditarOS.addEventListener('submit', function (e) {
     e.preventDefault();
+
     const formData = new FormData(formEditarOS);
 
     const id = formEditarOS.getAttribute('data-id');
     formData.append('id_os', id);
 
-    // Falhas
     document.querySelectorAll('#falhasContainer .row').forEach(row => {
-      formData.append('secao_falha[]', row.querySelector('[name="sec[]"]').value);
-      formData.append('falha_identificada[]', row.querySelector('[name="falha[]"]').value);
-      formData.append('militar_identificou[]', row.querySelector('[name="militar[]"]').value);
+      formData.append('secao_falha[]', row.querySelector('[name="sec[]"]')?.value || '');
+      formData.append('falha_identificada[]', row.querySelector('[name="falha[]"]')?.value || '');
+      formData.append('militar_identificou[]', row.querySelector('[name="militar[]"]')?.value || '');
     });
 
-    // Pessoal
     document.querySelectorAll('#pessoalContainer .row').forEach(row => {
-      formData.append('postograd[]', row.querySelector('[name="grad[]"]').value);
-      formData.append('nome_guerra[]', row.querySelector('[name="nome[]"]').value);
-      formData.append('funcao[]', row.querySelector('[name="funcao[]"]').value);
-      formData.append('data_emprego[]', row.querySelector('[name="data[]"]').value);
-      formData.append('servico_exec[]', row.querySelector('[name="servico[]"]').value);
+      formData.append('postograd[]', row.querySelector('[name="grad[]"]')?.value || '');
+      formData.append('nome_guerra[]', row.querySelector('[name="nome[]"]')?.value || '');
+      formData.append('funcao[]', row.querySelector('[name="funcao[]"]')?.value || '');
+      formData.append('data_emprego[]', row.querySelector('[name="data[]"]')?.value || '');
+      formData.append('servico_exec[]', row.querySelector('[name="servico[]"]')?.value || '');
     });
 
-    // Serviços
     document.querySelectorAll('#servicosContainer .row').forEach(row => {
-      formData.append('empresa[]', row.querySelector('[name="empresa[]"]').value);
-      formData.append('execucao[]', row.querySelector('[name="execucao[]"]').value);
-      formData.append('qtd_servico[]', row.querySelector('[name="qtd[]"]').value);
-      formData.append('valor_unitario_servico[]', row.querySelector('[name="valor_unt[]"]').value);
-      formData.append('valor_total_servico[]', row.querySelector('[name="valor_total[]"]').value);
+      formData.append('empresa[]', row.querySelector('[name="empresa[]"]')?.value || '');
+      formData.append('execucao[]', row.querySelector('[name="execucao[]"]')?.value || '');
+      formData.append('qtd_servico[]', row.querySelector('[name="qtd[]"]')?.value || '');
+      formData.append('valor_unitario_servico[]', row.querySelector('[name="valor_unt[]"]')?.value || '');
+      formData.append('valor_total_servico[]', row.querySelector('[name="valor_total[]"]')?.value || '');
     });
 
-    // Materiais
     document.querySelectorAll('#materiaisContainer .row').forEach(row => {
-      formData.append('origem_item[]', row.querySelector('[name="origem[]"]').value);
-      formData.append('descricao_item[]', row.querySelector('[name="descricao[]"]').value);
-      formData.append('qtd_item[]', row.querySelector('[name="qtd_mat[]"]').value);
-      formData.append('valor_unitario_item[]', row.querySelector('[name="valor_unt_mat[]"]').value);
-      formData.append('valor_total_item[]', row.querySelector('[name="valor_total_mat[]"]').value);
+      formData.append('origem_item[]', row.querySelector('[name="origem[]"]')?.value || '');
+      formData.append('descricao_item[]', row.querySelector('[name="descricao[]"]')?.value || '');
+      formData.append('qtd_item[]', row.querySelector('[name="qtd_mat[]"]')?.value || '');
+      formData.append('valor_unitario_item[]', row.querySelector('[name="valor_unt_mat[]"]')?.value || '');
+      formData.append('valor_total_item[]', row.querySelector('[name="valor_total_mat[]"]')?.value || '');
     });
 
-    // Preventiva
-    const preventiva = document.getElementById('manutencaoPreventiva').checked ? '1' : '0';
-    formData.append('manutencao_preventiva', preventiva);
-    formData.append('proxima_mnt_tempo', formEditarOS.querySelector('[name="proxima_mnt_tempo"]').value);
-    formData.append('proxima_mnt_valor', formEditarOS.querySelector('[name="proxima_mnt_valor"]').value);
-    formData.append('trocas_realizadas', formEditarOS.querySelector('[name="trocas_realizadas"]').value);
+    const preventiva = document.getElementById('manutencaoPreventiva')?.checked ? '1' : '0';
+
+    formData.set('manutencao_preventiva', preventiva);
+    formData.set('proxima_mnt_tempo', formEditarOS.querySelector('[name="proxima_mnt_tempo"]')?.value || '');
+    formData.set('proxima_mnt_valor', formEditarOS.querySelector('[name="proxima_mnt_valor"]')?.value || '');
+    formData.set('trocas_realizadas', formEditarOS.querySelector('[name="trocas_realizadas"]')?.value || '');
+				 
+	formData.delete('fotos_os[]');
+
+    fotosSelecionadasOS.forEach(file => {
+    formData.append('fotos_os[]', file);
+    });
+
+    formData.set('fotos_excluir', fotosExcluirOS.join(','));
 
     fetch('includes/os/editar_os.php', {
       method: 'POST',
@@ -870,6 +1048,7 @@ if (formEditarOS) {
       .then(retorno => {
         if (retorno.trim() === 'ok') {
           fecharModalAberto();
+
           Swal.fire({
             title: 'Sucesso!',
             text: 'Dados salvos com sucesso!',
@@ -897,6 +1076,67 @@ if (formEditarOS) {
       });
   });
 }
+								
+let fotosSelecionadasOS = [];
+let fotosExcluirOS = [];
+
+const inputFotosOS = document.getElementById('fotos_os');
+const previewFotosOS = document.getElementById('previewFotosOS');
+
+function atualizarInputFotosOS() {
+  const dataTransfer = new DataTransfer();
+
+  fotosSelecionadasOS.forEach(file => {
+    dataTransfer.items.add(file);
+  });
+
+  inputFotosOS.files = dataTransfer.files;
+}
+
+function renderPreviewFotosOS() {
+  previewFotosOS.innerHTML = '';
+
+  fotosSelecionadasOS.forEach((file, index) => {
+    const reader = new FileReader();
+
+    reader.onload = function (e) {
+      previewFotosOS.insertAdjacentHTML('beforeend', `
+        <div class="col-md-3 col-sm-6">
+          <div class="card shadow-sm">
+            <img src="${e.target.result}" class="card-img-top" style="height:160px; object-fit:cover;">
+            <div class="card-body p-2">
+              <div class="small text-muted text-truncate">${file.name}</div>
+              <button type="button" class="btn btn-window.editarOS = function (id) {danger btn-sm w-100 mt-2" onclick="removerFotoSelecionadaOS(${index})">
+                <i class="fas fa-trash me-1"></i> Remover
+              </button>
+            </div>
+          </div>
+        </div>
+      `);
+    };
+
+    reader.readAsDataURL(file);
+  });
+}
+
+window.removerFotoSelecionadaOS = function(index) {
+  fotosSelecionadasOS.splice(index, 1);
+  atualizarInputFotosOS();
+  renderPreviewFotosOS();
+};
+
+if (inputFotosOS && previewFotosOS) {
+  inputFotosOS.addEventListener('change', function () {
+    Array.from(this.files).forEach(file => {
+      if (file.type.startsWith('image/')) {
+        fotosSelecionadasOS.push(file);
+      }
+    });
+
+    atualizarInputFotosOS();
+    renderPreviewFotosOS();
+  });
+}		
 
 
 
@@ -1032,6 +1272,111 @@ window.verOS = function (id) {
             <strong>Total:</strong> R$ ${total.toFixed(2).replace('.', ',')}
           </div>`;
       });
+	  
+	  // Manutenções programadas executadas
+const mntProgramadasContainer = document.getElementById('mntProgramadasExecutadasContainer');
+
+if (mntProgramadasContainer) {
+  mntProgramadasContainer.innerHTML = '';
+
+  const mnts = dados.mnt_programadas || [];
+
+  if (mnts.length > 0) {
+    mnts.forEach(mnt => {
+      let dataExecucao = '';
+
+      if (mnt.data_execucao) {
+        const data = new Date(mnt.data_execucao + 'T00:00:00');
+        dataExecucao = data.toLocaleDateString('pt-BR');
+      }
+
+      mntProgramadasContainer.innerHTML += `
+        <div class="border rounded p-2 mb-2 bg-light">
+          <div class="d-flex justify-content-between flex-wrap gap-2">
+            <div>
+              <strong>${mnt.descricao || 'Plano de manutenção'}</strong><br>
+              <span class="text-muted small">Tipo de controle: ${mnt.tipo_controle || '-'}</span>
+            </div>
+            <span class="badge bg-success align-self-start">
+              Executada
+            </span>
+          </div>
+
+          <hr class="my-2">
+
+          <div class="row g-2 small">
+            <div class="col-md-3">
+              <strong>Data execução:</strong><br>
+              ${dataExecucao || '-'}
+            </div>
+            <div class="col-md-3">
+              <strong>ODO/HOR execução:</strong><br>
+              ${mnt.odometro_horimetro_execucao || '-'}
+            </div>
+            <div class="col-md-3">
+              <strong>Intervalo valor:</strong><br>
+              ${mnt.intervalo_valor || '-'}
+            </div>
+            <div class="col-md-3">
+              <strong>Intervalo dias:</strong><br>
+              ${mnt.intervalo_dias || '-'}
+            </div>
+          </div>
+        </div>
+      `;
+    });
+  } else {
+    mntProgramadasContainer.innerHTML = `
+      <p class="text-muted mb-0">Nenhuma manutenção programada executada nesta OS.</p>
+    `;
+  }
+}
+	  
+	  // Fotos da OS
+const fotosOSVerContainer = document.getElementById('fotosOSVerContainer');
+
+if (fotosOSVerContainer) {
+  fotosOSVerContainer.innerHTML = '';
+
+  const fotos = dados.fotos || [];
+
+  if (fotos.length > 0) {
+    fotos.forEach(foto => {
+      fotosOSVerContainer.innerHTML += `
+        <div class="col-md-3 col-sm-6">
+          <div class="card shadow-sm h-100">
+            <a href="${foto.caminho}" target="_blank">
+              <img 
+                src="${foto.caminho}" 
+                class="card-img-top" 
+                style="height:170px; object-fit:cover;"
+                alt="${foto.nome_arquivo || 'Foto da OS'}"
+              >
+            </a>
+
+            <div class="card-body p-2">
+              <div class="small fw-bold text-truncate">
+                ${foto.nome_arquivo || 'Foto da OS'}
+              </div>
+              <div class="small text-muted">
+                ${foto.data_upload || ''}
+              </div>
+              <div class="small mt-1">
+                ${foto.legenda || ''}
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    });
+  } else {
+    fotosOSVerContainer.innerHTML = `
+      <div class="col-12">
+        <p class="text-muted mb-0">Nenhuma foto enviada para esta OS.</p>
+      </div>
+    `;
+  }
+}
 
       // Logs
       const logsContainer = document.getElementById('logsContainer');

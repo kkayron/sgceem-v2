@@ -43,6 +43,8 @@ if ($res && $res->num_rows > 0) {
     $retorno['servicos'] = [];
     $retorno['materiais'] = [];
     $retorno['logs'] = [];
+	$retorno['fotos'] = [];
+    $retorno['mnt_programadas'] = [];
 
     // Consulta segura com real_escape_string (apenas precaução adicional)
     $id_sql = $conexao->real_escape_string($id);
@@ -78,7 +80,56 @@ if ($res && $res->num_rows > 0) {
             $retorno['materiais'][] = $m;
         }
     }
+	
+	// Fotos da OS
+$stmtFotos = $conexao->prepare("
+    SELECT 
+        id,
+        nome_arquivo,
+        caminho,
+        legenda,
+        data_upload
+    FROM os_fotos
+    WHERE id_osprincipal = ?
+    ORDER BY id DESC
+");
 
+$stmtFotos->bind_param("i", $id);
+$stmtFotos->execute();
+
+$resFotos = $stmtFotos->get_result();
+
+while ($foto = $resFotos->fetch_assoc()) {
+    $retorno['fotos'][] = $foto;
+}
+
+	// Manutenções programadas executadas nesta OS
+$stmtMnt = $conexao->prepare("
+    SELECT 
+        me.id,
+        me.id_plano,
+        me.odometro_horimetro_execucao,
+        me.data_execucao,
+        mp.descricao,
+        mp.tipo_controle,
+        mp.valor_inicial,
+        mp.intervalo_valor,
+        mp.intervalo_dias
+    FROM mnt_execucoes me
+    INNER JOIN mnt_planos mp ON mp.id = me.id_plano
+    WHERE me.id_osprincipal = ?
+    ORDER BY me.data_execucao DESC, me.id DESC
+");
+
+$stmtMnt->bind_param("i", $id);
+$stmtMnt->execute();
+
+$resMnt = $stmtMnt->get_result();
+
+while ($mnt = $resMnt->fetch_assoc()) {
+    $retorno['mnt_programadas'][] = $mnt;
+}
+	
     // Logs
     $logs = $conexao->query("
         SELECT l.*, u.nomeguerra, u.postograd 

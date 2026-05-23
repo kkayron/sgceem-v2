@@ -8,7 +8,7 @@ $pagina_id = intval($_POST['pagina_id'] ?? 0);
 $campo = $_POST['campo'] ?? '';
 $valor = intval($_POST['valor'] ?? 0);
 
-$campos_validos = ['pode_acessar', 'pode_editar', 'pode_deletar', 'pode_cadastrar', 'pode_importar', 'pode_exportar'];
+$campos_validos = ['pode_acessar', 'pode_editar', 'pode_deletar', 'pode_cadastrar', 'pode_importar', 'pode_exportar', 'pode_autorizar'];
 if ($funcao_id <= 0 || $pagina_id <= 0 || !in_array($campo, $campos_validos)) {
     echo json_encode(['status' => 'erro', 'mensagem' => 'Parâmetros inválidos.']);
     exit;

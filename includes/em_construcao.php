@@ -13,6 +13,16 @@ if (!isset($_SESSION['usuario'])) {
   exit;
 }
 
+// BLOQUEAR ACESSO DIRETO VIA URL
+if (
+    !isset($_SERVER['HTTP_X_REQUESTED_WITH']) ||
+    strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) !== 'xmlhttprequest'
+) {
+    http_response_code(403);
+    echo "<div class='alert alert-danger'>Acesso direto não permitido.</div>";
+    exit;
+}
+
 $titulo = $_GET['titulo'] ?? 'Módulo em construção';
 $detalhe = $_GET['msg'] ?? 'Estamos finalizando os ajustes para disponibilizar este conteúdo.';
 $voltar = $_GET['voltar'] ?? ''; // ex: includes/dashboard.php

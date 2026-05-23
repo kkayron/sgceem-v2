@@ -1,5 +1,23 @@
 <?php
 session_start();
+$pagina_id = 24;
+require_once('../api/seguranca_json_deletar.php');
+
+//CSRF
+if (
+    empty($_POST['csrf_token']) ||
+    empty($_SESSION['csrf_token']) ||
+    !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])
+) {
+    http_response_code(403);
+    echo json_encode([
+        'success' => false,
+        'message' => 'Token inválido'
+    ]);
+    exit;
+}
+
+
 include_once("../../conexao/config.php");
 include_once("../../includes/funcoes/log.php");
 
@@ -41,7 +59,10 @@ $stmt_delete_pregao->bind_param("i", $id);
 if ($stmt_delete_pregao->execute()) {
     $descricao = "Pregão ID {$pregao['id']} deletado: Número: {$pregao['nmr_pregao']}/{$pregao['ano_pregao']}, Tipo: {$pregao['tipo_pregao']}";
     registrar_log($conexao, $usuarioLogado, 'Deletar Pregão', $descricao, $id);
-
+	
+		// 🔒 NOVO TOKEN
+$_SESSION['csrf_token'] = bin2hex(random_bytes(32));	
+	
     echo json_encode(['success' => true]);
 } else {
     echo json_encode(['success' => false, 'message' => 'Erro ao deletar: ' . $stmt_delete_pregao->error]);

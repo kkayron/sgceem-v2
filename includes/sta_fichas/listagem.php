@@ -355,6 +355,7 @@ $batalhao_filtro = $_GET['batalhao'] ?? '';
             <select name="status" class="form-select">
               <option value="">Todos</option>
               <option value="Aberta">Aberta</option>
+                <option value="Não autorizada">Não autorizada</option>
               <option value="Encerrada">Encerrada</option>
             </select>
           </div>
@@ -388,20 +389,18 @@ $batalhao_filtro = $_GET['batalhao'] ?? '';
   <span class="ms-2">por página</span>
 </div>
  <div class="paginacao">
-      <?= renderPaginacaoFichas($pagina, $totalPaginas, $limite, $queryString, 'includes/sta_fichas/listagem.php'); ?>
-    </div>
+  <?= renderPaginacaoFichas($pagina, $totalPaginas, $limite, $queryString, 'includes/sta_fichas/listagem.php'); ?>
+</div>
 
-      
-      
-      <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between mb-2 p-2 border rounded bg-white shadow-sm">
-  <div class="form-check">
+<div class="barra-selecao-fichas">
+  <div class="form-check mb-0">
     <input class="form-check-input" type="checkbox" id="checkAllFichas">
     <label class="form-check-label" for="checkAllFichas">
       Selecionar tudo (página)
     </label>
   </div>
 
-  <div class="d-flex gap-2">
+  <div class="barra-selecao-acoes">
     <button type="button" class="btn btn-sm btn-outline-secondary" id="btnLimparSelecao" disabled>
       Limpar
     </button>
@@ -412,145 +411,401 @@ $batalhao_filtro = $_GET['batalhao'] ?? '';
     </button>
   </div>
 </div>
-      
-    <div class="d-flex flex-column gap-3">
+
+<div class="lista-fichas">
   <?php while ($row = $result->fetch_assoc()): ?>
     <?php
-      $id_viatura = $row['id_viatura'];
-        if ($id_viatura) {
-              $prefixo_sga = $row['prefixo_sga_lista'] ?? '—';
-            }
+      $prefixo_sga = $row['prefixo_sga_lista'] ?? '—';
 
-     
+      $autorizado = strtolower(trim($row['autorizado'] ?? 'não'));
+
+      if ($autorizado === 'sim') {
+          $classeAutorizacao = 'success';
+          $textoAutorizacao = 'Autorizada';
+          $iconeAutorizacao = 'fa-check';
+      } elseif ($autorizado === 'negado') {
+          $classeAutorizacao = 'danger';
+          $textoAutorizacao = 'Negada';
+          $iconeAutorizacao = 'fa-times';
+      } else {
+          $classeAutorizacao = 'warning';
+          $textoAutorizacao = 'Pendente';
+          $iconeAutorizacao = 'fa-clock';
+      }
+
+      $statusClass = match ($row['status']) {
+    'Aberta' => 'warning',
+    'Não autorizada' => 'danger',
+    'Encerrada' => 'success',
+    default => 'secondary'
+};
+	
+	$fichaPendenteAvaliacao = ($autorizado === 'não');
+$classeFichaPendente = $fichaPendenteAvaliacao ? ' ficha-pendente-avaliacao' : '';
     ?>
 
-    <div class="ficha-item border rounded shadow-sm p-3 bg-white d-flex flex-wrap align-items-center justify-content-between">
-       <!-- Checkbox -->
-  <div class="me-3 d-flex align-items-center">
-    <input
-      class="form-check-input ficha-check"
-      type="checkbox"
-      value="<?= (int)$row['id'] ?>"
-      aria-label="Selecionar ficha <?= (int)$row['id'] ?>"
-    >
+    <div class="ficha-item<?= $classeFichaPendente ?>">
+      <div class="ficha-checkbox">
+        <input
+          class="form-check-input ficha-check"
+          type="checkbox"
+          value="<?= (int)$row['id'] ?>"
+          aria-label="Selecionar ficha <?= (int)$row['id'] ?>"
+        >
+      </div>
+
+      <div class="ficha-conteudo">
+        <div class="ficha-topo">
+          <div>
+            <h6 class="ficha-titulo">
+              Ficha #<?= (int)$row['id'] ?>
+            </h6>
+            <div class="ficha-prefixo">
+              <?= htmlspecialchars($prefixo_sga) ?>
+            </div>
+          </div>
+
+          <div class="ficha-badges">
+            <span class="badge bg-<?= $statusClass ?>">
+              <?= htmlspecialchars($row['status'] ?? '—') ?>
+            </span>
+
+            <span class="badge bg-secondary">
+              <?= htmlspecialchars($row['natureza'] ?? '—') ?>
+            </span>
+          </div>
+        </div>
+		  <?php if ($fichaPendenteAvaliacao): ?>
+  <div class="aviso-pendente-avaliacao">
+    <i class="fas fa-exclamation-triangle me-1"></i>
+    Solicitação pendente de avaliação
   </div>
-        
-      <!-- Informações principais -->
-      <div class="flex-grow-1 me-3">
-        <div class="d-flex flex-wrap align-items-center mb-1">
-          <h6 class="fw-bold text-primary mb-0 me-2">Ficha #<?= $row['id'] ?></h6>
-          <small class="text-muted">— <?= htmlspecialchars($prefixo_sga) ?></small>
-        </div>
+<?php endif; ?>
 
-        <div class="d-flex flex-wrap text-muted small">
-          <div class="me-3">
-            <strong>Data:</strong> <?= date('d/m/Y', strtotime($row['data_abertura'])) ?>
+        <div class="ficha-dados">
+          <div>
+            <small>Data</small>
+            <strong><?= !empty($row['data_abertura']) ? date('d/m/Y', strtotime($row['data_abertura'])) : '—' ?></strong>
           </div>
-          <div class="me-3">
-            <strong>Solicitante:</strong> <?= htmlspecialchars($row['solicitante']) ?>
-          </div>
-          <div class="me-3">
-            <strong>Subunidade:</strong> <?= htmlspecialchars($row['subunidade']) ?>
-          </div>
-          <div class="me-3">
-            <strong>Destino:</strong> <?= htmlspecialchars($row['destino']) ?>
-          </div>
-        </div>
 
-        <div class="mt-2">
-          <span class="badge bg-<?= $row['status'] === 'Aberta' ? 'warning' : 'success' ?> me-2">
-            <?= $row['status'] ?>
-          </span>
-          <span class="badge bg-secondary"><?= htmlspecialchars($row['natureza']) ?></span>
+          <div>
+            <small>Solicitante</small>
+            <strong><?= htmlspecialchars($row['solicitante'] ?? '—') ?></strong>
+          </div>
+
+          <div>
+            <small>Subunidade</small>
+            <strong><?= htmlspecialchars($row['subunidade'] ?? '—') ?></strong>
+          </div>
+
+          <div>
+            <small>Destino</small>
+            <strong><?= htmlspecialchars($row['destino'] ?? '—') ?></strong>
+          </div>
         </div>
       </div>
 
-      <!-- Botões -->
-      <div class="d-flex flex-wrap gap-2 mt-2 mt-md-0">
-        
-        <!-- Dropdown Imprimir -->
+      <div class="ficha-acoes">
+        <button type="button"
+                class="btn btn-sm btn-outline-<?= $classeAutorizacao ?> d-flex align-items-center btn-autorizar-ficha"
+                data-id="<?= (int)$row['id'] ?>"
+                data-autorizado="<?= htmlspecialchars($autorizado, ENT_QUOTES, 'UTF-8') ?>"
+                data-observacao="<?= htmlspecialchars($row['observacao_autorizacao'] ?? '', ENT_QUOTES, 'UTF-8') ?>"
+                onclick="abrirModalAutorizacaoFicha(this)"
+                data-bs-toggle="modal"
+                data-bs-target="#modalAutorizarFicha"
+                title="Alterar autorização">
+          <i class="fas <?= $iconeAutorizacao ?> me-1"></i>
+          <?= $textoAutorizacao ?>
+        </button>
+
         <div class="dropdown">
           <button class="btn btn-sm btn-outline-secondary dropdown-toggle d-flex align-items-center"
                   type="button"
-                  id="dropdownMenu<?= $row['id'] ?>"
+                  id="dropdownMenu<?= (int)$row['id'] ?>"
                   data-bs-toggle="dropdown"
                   aria-expanded="false">
             <i class="fas fa-print me-1"></i> Imprimir
           </button>
-          <ul class="dropdown-menu dropdown-menu-end shadow-sm rounded" aria-labelledby="dropdownMenu<?= $row['id'] ?>">
+
+          <ul class="dropdown-menu dropdown-menu-end shadow-sm rounded" aria-labelledby="dropdownMenu<?= (int)$row['id'] ?>">
             <li>
               <a href="#"
                  class="dropdown-item text-danger btnExportarPDFsta"
-                 data-id="<?= $row['id'] ?>">
+                 data-id="<?= (int)$row['id'] ?>">
                 <i class="fas fa-file-pdf me-2"></i> Imprimir Ficha
               </a>
             </li>
           </ul>
         </div>
 
-        <!-- Ver -->
         <button class="btn btn-sm btn-outline-primary d-flex align-items-center"
-                onclick="verFicha(<?= $row['id'] ?>)"
+                onclick="verFicha(<?= (int)$row['id'] ?>)"
                 data-bs-toggle="modal"
                 data-bs-target="#modalVerFICHA">
           <i class="fas fa-eye me-1"></i> Ver
         </button>
 
-        <!-- Editar -->
         <button class="btn btn-sm btn-outline-warning d-flex align-items-center"
-                onclick="editarFICHA(<?= $row['id'] ?>)"
+                onclick="editarFICHA(<?= (int)$row['id'] ?>)"
                 data-bs-toggle="modal"
                 data-bs-target="#modalEditarFICHA">
           <i class="fas fa-edit me-1"></i> Editar
         </button>
 
-        <!-- Deletar -->
-      <button type="button"
-        class="btn btn-sm btn-outline-danger d-flex align-items-center btn-deletar-ficha"
-        data-id="<?= $row['id'] ?>"
-        onclick="deletarFicha(this)"
-        title="Remover Ficha">
-  <i class="fa fa-times"></i>
-</button>
-
+        <button type="button"
+                class="btn btn-sm btn-outline-danger d-flex align-items-center btn-deletar-ficha"
+                data-id="<?= (int)$row['id'] ?>"
+                onclick="deletarFicha(this)"
+                title="Remover Ficha">
+          <i class="fa fa-times"></i>
+        </button>
       </div>
     </div>
   <?php endwhile; ?>
 </div>
 
+<div class="paginacao mt-3">
+  <?= renderPaginacaoFichas($pagina, $totalPaginas, $limite, $queryString, 'includes/sta_fichas/listagem.php'); ?>
+</div>
+
 <style>
-      .ficha-check { transform: scale(1.15); }
-  @media (max-width: 768px) {
-    .ficha-check { transform: scale(1.25); }
+  .barra-selecao-fichas {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: .75rem;
+    margin-bottom: 1rem;
+    padding: .75rem 1rem;
+    background: #fff;
+    border: 1px solid #e9ecef;
+    border-radius: .9rem;
+    box-shadow: 0 .25rem .75rem rgba(0,0,0,.04);
   }
+
+  .barra-selecao-acoes {
+    display: flex;
+    gap: .5rem;
+    align-items: center;
+  }
+
+  .lista-fichas {
+    display: flex;
+    flex-direction: column;
+    gap: .85rem;
+  }
+
   .ficha-item {
-    transition: all 0.2s ease-in-out;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: #fff;
+    border: 1px solid #e9ecef;
+    border-radius: 1rem;
+    box-shadow: 0 .25rem .75rem rgba(0,0,0,.04);
+    transition: all .2s ease-in-out;
   }
 
   .ficha-item:hover {
-    background-color: #f8f9fa;
+    background-color: #fbfbfc;
     transform: translateY(-2px);
+    box-shadow: 0 .5rem 1.2rem rgba(0,0,0,.07);
   }
 
-  /* Ajuste responsivo para telas pequenas */
-  @media (max-width: 768px) {
+  .ficha-checkbox {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .ficha-check {
+    transform: scale(1.15);
+  }
+
+  .ficha-conteudo {
+    min-width: 0;
+  }
+
+  .ficha-topo {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: .75rem;
+    margin-bottom: .6rem;
+  }
+
+  .ficha-titulo {
+    margin: 0;
+    font-weight: 700;
+    color: #0d6efd;
+  }
+
+  .ficha-prefixo {
+    margin-top: .2rem;
+    font-size: .8rem;
+    color: #6c757d;
+  }
+
+  .ficha-badges {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: .35rem;
+  }
+
+  .ficha-dados {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(110px, 1fr));
+    gap: .6rem;
+  }
+
+  .ficha-dados small {
+    display: block;
+    color: #6c757d;
+    font-size: .72rem;
+    text-transform: uppercase;
+    letter-spacing: .03em;
+    margin-bottom: .15rem;
+  }
+
+  .ficha-dados strong {
+    display: block;
+    color: #212529;
+    font-size: .88rem;
+    font-weight: 600;
+    line-height: 1.25;
+    word-break: break-word;
+  }
+
+  .ficha-acoes {
+    display: grid;
+    grid-template-columns: repeat(2, auto);
+    gap: .45rem;
+    justify-content: end;
+    align-items: center;
+  }
+
+  .ficha-acoes .btn {
+    min-height: 31px;
+    justify-content: center;
+    white-space: nowrap;
+  }
+
+  .ficha-acoes .btn-deletar-ficha {
+    width: 36px;
+    padding-left: .5rem;
+    padding-right: .5rem;
+  }
+
+  @media (max-width: 1200px) {
     .ficha-item {
+      grid-template-columns: auto 1fr;
+    }
+
+    .ficha-acoes {
+      grid-column: 2 / 3;
+      grid-template-columns: repeat(5, auto);
+      justify-content: start;
+      margin-top: .25rem;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .barra-selecao-fichas {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .barra-selecao-acoes {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      width: 100%;
+    }
+
+    .barra-selecao-acoes .btn {
+      width: 100%;
+    }
+
+    .ficha-item {
+      grid-template-columns: 1fr;
+      gap: .75rem;
+    }
+
+    .ficha-checkbox {
+      justify-content: flex-start;
+    }
+
+    .ficha-check {
+      transform: scale(1.25);
+    }
+
+    .ficha-topo {
       flex-direction: column;
       align-items: flex-start;
     }
-    .ficha-item .d-flex.flex-wrap.gap-2 {
-      justify-content: flex-start !important;
+
+    .ficha-badges {
+      justify-content: flex-start;
+    }
+
+    .ficha-dados {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .ficha-acoes {
+      grid-column: auto;
+      width: 100%;
+      grid-template-columns: 1fr 1fr;
+      justify-content: stretch;
+    }
+
+    .ficha-acoes .btn,
+    .ficha-acoes .dropdown,
+    .ficha-acoes .dropdown .btn {
+      width: 100%;
+    }
+
+    .ficha-acoes .btn-deletar-ficha {
+      width: 100%;
     }
   }
+
+  @media (max-width: 480px) {
+    .ficha-dados {
+      grid-template-columns: 1fr;
+    }
+
+    .ficha-acoes {
+      grid-template-columns: 1fr;
+    }
+  }
+	
+	.ficha-pendente-avaliacao {
+  background: #fff8e1 !important;
+  border-color: #ffe08a !important;
+}
+
+.ficha-pendente-avaliacao:hover {
+  background: #fff3cd !important;
+}
+
+.aviso-pendente-avaliacao {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  margin-bottom: .65rem;
+  padding: .35rem .65rem;
+  border-radius: 999px;
+  background: #fff3cd;
+  border: 1px solid #ffda6a;
+  color: #7a5a00;
+  font-size: .78rem;
+  font-weight: 600;
+}
 </style>
 
-
-       <div class="paginacao">
-      <?= renderPaginacaoFichas($pagina, $totalPaginas, $limite, $queryString, 'includes/sta_fichas/listagem.php'); ?>
-    </div>
-
-      
-      
       
       <!-- Modal de Cadastro da Ficha STA -->
 <div class="modal fade" id="modalCadastroVTR" tabindex="-1" aria-labelledby="modalCadastroVTRLabel" aria-hidden="true">
@@ -715,6 +970,7 @@ while ($batPermitido = $sqlPermitidos->fetch_assoc()) {
               <select class="form-select" name="status" required>
                 <option value="" disabled selected>Selecione</option>
                 <option value="Aberta">Aberta</option>
+                <option value="Não autorizada">Não autorizada</option>
                 <option value="Encerrada">Encerrada</option>
               </select>
             </div>
@@ -930,6 +1186,7 @@ while ($batPermitido = $sqlPermitidos->fetch_assoc()) {
               <select class="form-select" name="status" id="editar-status" required>
                 <option value="">Selecione</option>
                 <option value="Aberta">Aberta</option>
+                <option value="Não autorizada">Não autorizada</option>
                 <option value="Encerrada">Encerrada</option>
               </select>
             </div>
@@ -1142,6 +1399,52 @@ while ($batPermitido = $sqlPermitidos->fetch_assoc()) {
      
    
       
+  </div>
+</div>
+	  
+	  <div class="modal fade" id="modalAutorizarFicha" tabindex="-1" aria-labelledby="modalAutorizarFichaLabel" aria-hidden="true">
+  <div class="modal-dialog modal-md modal-dialog-centered">
+    <div class="modal-content">
+      <form id="form-autorizar-ficha">
+        <div class="modal-header">
+          <h5 class="modal-title" id="modalAutorizarFichaLabel">Autorização da Ficha</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+        </div>
+
+        <div class="modal-body">
+          <input type="hidden" name="id" id="autorizar-ficha-id">
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Situação da autorização</label>
+            <select name="autorizado" id="autorizar-ficha-status" class="form-select" required>
+              <option value="não">Pendente</option>
+              <option value="sim">Autorizar</option>
+              <option value="negado">Negar</option>
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Observação</label>
+            <textarea name="observacao_autorizacao"
+                      id="observacao-autorizacao"
+                      class="form-control"
+                      rows="3"
+                      placeholder="Informe uma observação, se necessário"></textarea>
+          </div>
+
+          <div class="alert alert-info mb-0">
+            Ao autorizar, a ficha ficará liberada para uso/impressão. Ao negar, ela permanecerá registrada, mas não autorizada.
+          </div>
+        </div>
+
+        <div class="modal-footer justify-content-between">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-success">
+            <i class="fas fa-save me-1"></i> Salvar Autorização
+          </button>
+        </div>
+      </form>
+    </div>
   </div>
 </div>
 <script>

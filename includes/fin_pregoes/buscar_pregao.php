@@ -1,8 +1,11 @@
 <?php
 // includes/fin_pregoes/buscar_pregao.php
-
-include '../../conexao/config.php';
 session_start();
+include '../../conexao/config.php';
+$pagina_id = 24;
+
+require_once('../api/seguranca_json.php');
+
 header('Content-Type: application/json; charset=utf-8');
 
 // ===============================================================

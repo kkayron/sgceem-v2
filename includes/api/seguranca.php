@@ -5,9 +5,73 @@ function verificarPermissao($pagina_ids){
         session_start();
     }
 
+    // 🔒 TEMPO DE SESSÃO (ex: 30 minutos)
+    $tempo_expiracao = $_SESSION['tempo_expiracao'];
+
+    if (isset($_SESSION['ultimo_acesso'])) {
+        if ((time() - $_SESSION['ultimo_acesso']) > $tempo_expiracao) {
+
+            session_unset();
+            session_destroy();
+            ?>
+            <!DOCTYPE html>
+            <html lang="pt-BR">
+            <head>
+            <meta charset="UTF-8">
+            <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+            </head>
+            <body>
+            <script>
+            Swal.fire({
+                icon: 'warning',
+                title: 'Sessão Expirada',
+                text: 'Sua sessão expirou por inatividade.',
+                confirmButtonText: 'Fazer login novamente',
+                allowOutsideClick: false
+            }).then(() => {
+                window.location.href = 'login.php';
+            });
+            </script>
+            </body>
+            </html>
+            <?php
+            exit;
+        }
+    }
+
+    // 🔄 Atualiza tempo de atividade
+    $_SESSION['ultimo_acesso'] = time();
+
+    // 🔒 Verificação de sessão
     if (!isset($_SESSION['usuario_id']) || empty($_SESSION['usuario'])) {
-        http_response_code(401);
-        exit('Sessão inválida.');
+        ?>
+        <!DOCTYPE html>
+        <html lang="pt-BR">
+        <head>
+        <meta charset="UTF-8">
+        <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+        </head>
+        <body>
+        <script>
+        Swal.fire({
+            icon: 'error',
+            title: 'Sessão inválida',
+            text: 'Faça login novamente.',
+            confirmButtonText: 'Ir para login',
+            allowOutsideClick: false
+        }).then(() => {
+            window.location.href = 'login.php';
+        });
+        </script>
+        </body>
+        </html>
+        <?php
+        exit;
+    }
+
+    // 🔒 CSRF (mantido)
+    if (empty($_SESSION['csrf_token'])) {
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
     }
 
     // Garante array
@@ -15,16 +79,16 @@ function verificarPermissao($pagina_ids){
         $pagina_ids = [$pagina_ids];
     }
 
-    // Controle de acesso geral
     $tem_acesso = false;
 
-    // Permissões acumuladas
     $permissoes = [
         'cadastrar' => false,
         'editar'    => false,
         'deletar'   => false,
         'importar'  => false,
-        'exportar'  => false
+        'exportar'  => false,
+        'autorizar'  => false
+		
     ];
 
     foreach ($pagina_ids as $pagina_id) {
@@ -33,16 +97,16 @@ function verificarPermissao($pagina_ids){
 
             $tem_acesso = true;
 
-            // Combina permissões (OR lógico)
             $permissoes['cadastrar'] = $permissoes['cadastrar'] || ($_SESSION['permissoes'][$pagina_id]['pode_cadastrar'] ?? false);
             $permissoes['editar']    = $permissoes['editar']    || ($_SESSION['permissoes'][$pagina_id]['pode_editar'] ?? false);
             $permissoes['deletar']   = $permissoes['deletar']   || ($_SESSION['permissoes'][$pagina_id]['pode_deletar'] ?? false);
             $permissoes['importar']  = $permissoes['importar']  || ($_SESSION['permissoes'][$pagina_id]['pode_importar'] ?? false);
             $permissoes['exportar']  = $permissoes['exportar']  || ($_SESSION['permissoes'][$pagina_id]['pode_exportar'] ?? false);
+            $permissoes['autorizar']  = $permissoes['autorizar']  || ($_SESSION['permissoes'][$pagina_id]['pode_autorizar'] ?? false);
         }
     }
 
-    // Se não tem acesso a nenhuma
+    // 🔒 Sem permissão
     if (!$tem_acesso) {
         ?>
         <!DOCTYPE html>
@@ -51,7 +115,6 @@ function verificarPermissao($pagina_ids){
         <meta charset="UTF-8">
         <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
         </head>
-
         <body>
         <script>
         Swal.fire({

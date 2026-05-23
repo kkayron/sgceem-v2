@@ -2,6 +2,59 @@
 
 // LISTAGEM DAS FICHAS DE VIATURAS
 window.inicializarFichas = function () {
+	
+	window.abrirModalAutorizacaoFicha = function(botao) {
+  const id = botao.getAttribute('data-id');
+  const autorizado = botao.getAttribute('data-autorizado') || 'não';
+  const observacao = botao.getAttribute('data-observacao') || '';
+
+  document.getElementById('autorizar-ficha-id').value = id;
+  document.getElementById('autorizar-ficha-status').value = autorizado;
+  document.getElementById('observacao-autorizacao').value = observacao;
+};
+
+const formAutorizarFicha = document.getElementById('form-autorizar-ficha');
+
+if (formAutorizarFicha) {
+  formAutorizarFicha.addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    const formData = new FormData(formAutorizarFicha);
+
+    fetch('includes/sta_fichas/autorizar_ficha.php', {
+      method: 'POST',
+      body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        Swal.fire({
+          icon: 'success',
+          title: 'Atualizado!',
+          text: data.message || 'Autorização atualizada com sucesso.',
+          timer: 1500,
+          showConfirmButton: false
+        }).then(() => {
+          carregarPagina('includes/sta_fichas/listagem.php');
+          fecharModalAberto();
+        });
+      } else {
+        Swal.fire({
+          icon: 'error',
+          title: 'Erro',
+          text: data.message || 'Erro ao atualizar autorização.'
+        });
+      }
+    })
+    .catch(error => {
+      Swal.fire({
+        icon: 'error',
+        title: 'Erro de rede',
+        text: error.message
+      });
+    });
+  });
+}
     
      // Mostrar/ocultar dados da manutenção preventiva
 const chkPreventiva = document.getElementById('manutencaoPreventiva');

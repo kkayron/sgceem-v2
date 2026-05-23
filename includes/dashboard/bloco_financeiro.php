@@ -9,12 +9,14 @@ $pode_cadastrar = $permissoes['cadastrar'];
 $pode_editar    = $permissoes['editar'];
 $pode_deletar   = $permissoes['deletar'];
 $pode_importar  = $permissoes['importar'];
+$pode_exportar  = $permissoes['exportar'];
 
 if (!isset($_SESSION['usuario_id'])) {
   http_response_code(401);
   echo "<div class='alert alert-danger'>Sessão expirada. Faça login novamente.</div>";
   exit;
 }
+
 
 include_once('../../conexao/config.php');
 
@@ -395,8 +397,9 @@ function kpiCard($title, $value, $icon, $class = 'primary', $sub = '') {
 
 <div data-bloco="financeiro">
 
-  <!-- ✅ AÇÕES -->
+  <!-- AÇÕES -->
   <div class="d-flex flex-wrap gap-2 justify-content-end mb-2">
+	  <?php if($pode_exportar): ?>
     <button type="button" class="btn btn-danger btn-sm"
       onclick="(function(){
         var f=document.getElementById('filtroFinanceiroForm');
@@ -416,6 +419,7 @@ function kpiCard($title, $value, $icon, $class = 'primary', $sub = '') {
       })();">
       <i class="fas fa-file-excel me-1"></i> Exportar Excel
     </button>
+	  <?php endif; ?>
   </div>
 
   <!-- ✅ FILTRO (COM COLLAPSE) -->

@@ -253,6 +253,8 @@ if (!empty($idsPagina)) {
    $sqlDetalhe = "
     SELECT 
         os.id AS os_id,
+		fotos.fotos_os,
+        COALESCE(fotos.total_fotos_os, 0) AS total_fotos_os,
         os.data_abertura, 
         os.odometro_horimetro,
         os.status, 
@@ -288,12 +290,29 @@ if (!empty($idsPagina)) {
             SELECT GROUP_CONCAT(DISTINCT i.itens_utilizados ORDER BY i.itens_utilizados SEPARATOR ' | ')
             FROM os_itens i
             WHERE i.id_osprincipal = os.id
-        ) AS materiais_utilizados
+        ) AS materiais_utilizados,
+		mntprog.manutencoes_programadas
 
     FROM os_principal os
     LEFT JOIN frota f ON os.id_frota = f.id
     LEFT JOIN config_marcas cmarca ON f.marca = cmarca.id
     LEFT JOIN config_modelos cmod  ON f.modelo = cmod.id
+	LEFT JOIN (
+    SELECT 
+        id_osprincipal,
+        GROUP_CONCAT(caminho ORDER BY id DESC SEPARATOR '|') AS fotos_os,
+        COUNT(*) AS total_fotos_os
+    FROM os_fotos
+    GROUP BY id_osprincipal
+) fotos ON fotos.id_osprincipal = os.id
+	LEFT JOIN (
+    SELECT 
+        me.id_osprincipal,
+        GROUP_CONCAT(mp.descricao SEPARATOR ', ') AS manutencoes_programadas
+    FROM mnt_execucoes me
+    INNER JOIN mnt_planos mp ON mp.id = me.id_plano
+    GROUP BY me.id_osprincipal
+) mntprog ON mntprog.id_osprincipal = os.id
 
     WHERE os.id IN ($ph)
     ORDER BY os.id DESC
@@ -364,10 +383,6 @@ $filtrosVisiveis = !empty($_GET);
 // - $result (pode ser null se vazio)
 // - $totalRegistros, $totalPaginas, $pagina, etc.
 ?>
-
-
-
-
 <style>
     .btn-group-responsive {
   display: flex;
@@ -633,201 +648,357 @@ $batalhao_filtro = $_GET['batalhao'] ?? '';
 <div class="paginacao mb-3">
   <?= renderPaginacaoOS($pagina, $totalPaginas, $limite, $queryString, 'includes/os/listagem.php'); ?>
 </div>
+<style>
+.os-card {
+  border: 0;
+  border-radius: 18px;
+  overflow: hidden;
+  background: #fff;
+  transition: .2s ease;
+}
+
+.os-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 .75rem 1.5rem rgba(0,0,0,.12) !important;
+}
+
+.os-card-header {
+  background: linear-gradient(135deg, #1f3d2b, #2f4f3a);
+  color: #fff;
+  padding: 12px 14px;
+}
+
+.os-title {
+  font-size: .95rem;
+  font-weight: 800;
+  margin: 0;
+}
+
+.os-subtitle {
+  font-size: .78rem;
+  opacity: .9;
+}
+
+.os-photo-strip {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 3px;
+}
+
+.os-photo-thumb {
+  width: 74px;
+  height: 58px;
+  flex: 0 0 auto;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 2px solid #e5e7eb;
+  background: #f8f9fa;
+}
+
+.os-info-list li {
+  margin-bottom: 5px;
+}
+
+.os-section-mini {
+  background: #f8fafc;
+  border-left: 4px solid #2f4f3a;
+  border-radius: 10px;
+  padding: 8px 10px;
+}
+
+.os-actions {
+  border-top: 1px solid #edf0f2;
+  padding-top: 10px;
+}
+
+@media (max-width: 576px) {
+  .os-card-header {
+    padding: 10px 12px;
+  }
+
+  .os-title {
+    font-size: .9rem;
+  }
+
+  .os-actions .btn,
+  .os-actions .dropdown {
+    width: 100%;
+  }
+
+  .os-actions .btn,
+  .os-actions .dropdown button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .os-photo-thumb {
+    width: 82px;
+    height: 64px;
+  }
+}
+</style>
 
 <div class="row g-3">
-  <?php if ($result && $result->num_rows > 0): ?>
-  <?php while ($os = $result->fetch_assoc()): ?>
-    <div class="col-12 col-md-6 col-lg-4">
-      <div class="card border-0 shadow-sm h-100 rounded-4">
-        <div class="card-body d-flex flex-column">
-          <!-- Cabeçalho -->
-          <div class="d-flex justify-content-between align-items-start mb-2">
-            <div>
-              <h6 class="fw-bold text-primary mb-1">
-                OS #<?= $os['os_id'] ?> - <?= htmlspecialchars($os['prefixo_sga']) ?>
-              </h6>
+<?php if ($result && $result->num_rows > 0): ?>
+<?php while ($os = $result->fetch_assoc()): ?>
+
 <?php
 if (!function_exists('dataValida')) {
-    function dataValida($data){
+    function dataValida($data) {
         return !empty($data)
             && $data !== '0000-00-00'
             && $data !== '0000-00-00 00:00:00';
     }
 }
+
+$fotosOS = [];
+
+if (!empty($os['fotos_os'])) {
+    $fotosOS = array_filter(explode('|', $os['fotos_os']));
+}
+
+$statusClass = match ($os['status']) {
+    'Aberta' => 'warning',
+    'Concluída' => 'success',
+    'Em andamento' => 'primary',
+    'Aguardando Peças', 'Aguardando Suprimento' => 'danger',
+    default => 'secondary'
+};
 ?>
 
-<ul class="list-unstyled small text-body-secondary mb-3">
+<div class="col-12 col-md-6 col-xl-4">
+  <div class="card os-card shadow-sm h-100">
 
-<li>
-    <small class="text-muted">
-        <b>Abertura:</b>
-        <?= dataValida($os['data_abertura']) 
-            ? date('d/m/Y', strtotime($os['data_abertura'])) 
-            : 'Não informada' ?>
-    </small>
-</li>
-
-<?php if (dataValida($os['data_encerramento'])): ?>
-<li>
-    <small class="text-muted">
-        <b>Encerramento:</b>
-        <?= date('d/m/Y', strtotime($os['data_encerramento'])) ?>
-    </small>
-</li>
-<?php endif; ?>
-
-</ul>
-            
-            </div>
-            <span class="badge rounded-pill bg-<?= $os['status'] === 'Aberta' ? 'warning' : ($os['status'] === 'Concluída' ? 'success' : 'secondary') ?> text-dark">
-              <?= htmlspecialchars($os['status']) ?>
-            </span>
-          </div>
-
-          <!-- Marca e Modelo -->
-          <p class="mb-2 text-secondary fst-italic">
-            <?= htmlspecialchars($os['marca_nome'] ?? '—') ?> - <?= htmlspecialchars($os['modelo_nome'] ?? '—') ?>
-          </p>
-
-          <!-- Informações detalhadas -->
-          <ul class="list-unstyled small text-body-secondary mb-3">
-            <li><i class="fas fa-user me-1"></i> <strong>Solicitante:</strong> <?= $os['solicitante'] ?? '—' ?></li>
-            <li><i class="fas fa-cogs me-1"></i> <strong>Problema:</strong> <?= $os['problema'] ?? '—' ?></li>
-            <li><i class="fas fa-exclamation-triangle me-1"></i> <strong>Causa indisponibilidade:</strong> <?= $os['causa_indisponibilidade'] ?? '—' ?></li>
-            <li><i class="fas fa-building me-1"></i> <strong>Seção responsável:</strong> <?= $os['secao_rspns'] ?? '—' ?></li>
-            <li>
-              <i class="fas fa-tachometer-alt me-1"></i> 
-              <strong>Odômetro/Horímetro entrada:</strong> 
-              <?= isset($os['odometro_horimetro']) 
-                  ? number_format($os['odometro_horimetro'], 2, ',', '.') . 
-                    (isset($os['tipo']) && $os['tipo'] === 'Eqp' ? ' h' : ' Km') 
-                  : '—' ?>
-            </li>
-            <li>
-              <?php if ($os['tipo'] === 'Eqp'): ?>
-                <i class="fas fa-hourglass-half me-1"></i>
-                <strong>Horímetro atual:</strong> <?= $os['horimetro'] ?? '—' ?> h
-              <?php elseif ($os['tipo'] === 'Vtr'): ?>
-                <i class="fas fa-road me-1"></i>
-                <strong>Odômetro atual:</strong> <?= $os['odometro'] ?? '—' ?> km
-              <?php else: ?>
-                <i class="fas fa-road me-1"></i>
-                <strong>Odômetro atual:</strong> <?= $os['odometro'] ?? '—' ?> km |
-                <i class="fas fa-hourglass-half me-1"></i>
-                <strong>Horímetro atual:</strong> <?= $os['horimetro'] ?? '—' ?> h
-              <?php endif; ?>
-            </li>
-          </ul>
-            
-            <?php if (!empty($os['servicos_realizados'])): ?>
-  <div class="mb-2">
-    <small class="fw-bold text-success">
-      <i class="fas fa-tools me-1"></i> Serviços realizados:
-    </small>
-    <div class="small text-body-secondary">
-      <?= htmlspecialchars($os['servicos_realizados']) ?>
-    </div>
-  </div>
-<?php endif; ?>
-
-<?php if (!empty($os['materiais_utilizados'])): ?>
-  <div class="mb-2">
-    <small class="fw-bold text-primary">
-      <i class="fas fa-box-open me-1"></i> Materiais / Peças utilizadas:
-    </small>
-    <div class="small text-body-secondary">
-      <?= htmlspecialchars($os['materiais_utilizados']) ?>
-    </div>
-  </div>
-<?php endif; ?>
-
-<?php if (!empty($os['materiais_utilizados'])): ?>
-  <div class="mb-2">
-    <small class="fw-bold text-primary">
-      <i class="fas fa-box-open me-1"></i> Materiais / Peças utilizadas:
-    </small>
-    <div class="small text-body-secondary">
-      <?= htmlspecialchars($os['materiais_utilizados']) ?>
-    </div>
-  </div>
-<?php endif; ?>
-            <?php if (!empty($os['observacao'])): ?>
-  <div class="mb-2">
-    <small class="fw-bold text-primary">
-      <i class="fas fa-info-circle me-1"></i> Observações registradas:
-    </small>
-    <div class="small text-body-secondary">
-      <?= htmlspecialchars($os['observacao']) ?>
-    </div>
-  </div>
-<?php endif; ?>
-
-
-          <!-- Ações -->
-          <div class="mt-auto d-flex flex-wrap gap-2">
-            <!-- Ver OS -->
-            <button class="btn btn-sm btn-outline-primary d-flex align-items-center"
-                    onclick="verOS(<?= $os['os_id'] ?>)"
-                    data-bs-toggle="modal"
-                    data-bs-target="#modalVerOS">
-              <i class="fas fa-eye me-1"></i> Ver OS
-            </button>
-
-            <!-- Editar OS -->
-            <button class="btn btn-sm btn-outline-warning d-flex align-items-center"
-                    onclick="editarOS(<?= $os['os_id'] ?>)"
-                    data-bs-toggle="modal"
-                    data-bs-target="#modalEditarOS">
-              <i class="fas fa-edit me-1"></i> Editar
-            </button>
-
-            <!-- Imprimir -->
-            <div class="dropdown">
-              <button class="btn btn-sm btn-outline-secondary dropdown-toggle"
-                      type="button"
-                      id="dropdownMenu<?= $os['os_id'] ?>"
-                      data-bs-toggle="dropdown"
-                      aria-expanded="false">
-                <i class="fas fa-print me-1"></i> Imprimir
-              </button>
-              <ul class="dropdown-menu dropdown-menu-end shadow-sm rounded" aria-labelledby="dropdownMenu<?= $os['os_id'] ?>">
-                <li>
-                  <a href="#" class="dropdown-item text-danger btnExportarPDFos" data-id="<?= $os['os_id'] ?>">
-                    <i class="fas fa-file-pdf me-2"></i> OS p/ preenchimento
-                  </a>
-                </li>
-                <li>
-                  <a href="#" class="dropdown-item text-primary btnExportarPDFveros" data-id="<?= $os['os_id'] ?>">
-                    <i class="fas fa-eye me-2"></i> Ver OS preenchida
-                  </a>
-                </li>
-              </ul>
-            </div>
-
-            <!-- Remover -->
-            <button type="button" 
-                    class="btn btn-sm btn-outline-danger"
-                    data-id="<?= $os['os_id'] ?>"
-                    onclick="deletarOS(this)"
-                    data-bs-toggle="tooltip"
-                    title="Remover">
-              <i class="fas fa-times"></i>
-            </button>
+    <div class="os-card-header">
+      <div class="d-flex justify-content-between align-items-start gap-2">
+        <div>
+          <h6 class="os-title">
+            OS #<?= $os['os_id'] ?> - <?= htmlspecialchars($os['prefixo_sga']) ?>
+          </h6>
+          <div class="os-subtitle">
+            <?= htmlspecialchars($os['marca_nome'] ?? '—') ?> /
+            <?= htmlspecialchars($os['modelo_nome'] ?? '—') ?>
           </div>
         </div>
+
+        <span class="badge rounded-pill bg-<?= $statusClass ?> <?= $statusClass === 'warning' ? 'text-dark' : '' ?>">
+          <?= htmlspecialchars($os['status']) ?>
+        </span>
       </div>
     </div>
-    <?php endwhile; ?>
+
+    <div class="card-body d-flex flex-column">
+
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <div class="small text-muted">
+          <i class="fas fa-calendar-alt me-1"></i>
+          <strong>Abertura:</strong>
+          <?= dataValida($os['data_abertura']) ? date('d/m/Y', strtotime($os['data_abertura'])) : 'Não informada' ?>
+        </div>
+
+        <?php if (!empty($os['total_fotos_os'])): ?>
+          <span class="badge bg-dark">
+            <i class="fas fa-camera me-1"></i><?= intval($os['total_fotos_os']) ?>
+          </span>
+        <?php endif; ?>
+      </div>
+
+      <?php if (dataValida($os['data_encerramento'])): ?>
+        <div class="small text-muted mb-2">
+          <i class="fas fa-calendar-check me-1"></i>
+          <strong>Encerramento:</strong>
+          <?= date('d/m/Y', strtotime($os['data_encerramento'])) ?>
+        </div>
+      <?php endif; ?>
+
+     
+
+      <ul class="list-unstyled small text-body-secondary os-info-list mb-3">
+        <li>
+          <i class="fas fa-user me-1 text-primary"></i>
+          <strong>Solicitante:</strong> <?= htmlspecialchars($os['solicitante'] ?? '—') ?>
+        </li>
+
+        <li>
+          <i class="fas fa-cogs me-1 text-secondary"></i>
+          <strong>Problema:</strong> <?= htmlspecialchars($os['problema'] ?? '—') ?>
+        </li>
+
+        <li>
+          <i class="fas fa-exclamation-triangle me-1 text-warning"></i>
+          <strong>Causa indisponibilidade:</strong> <?= htmlspecialchars($os['causa_indisponibilidade'] ?? '—') ?>
+        </li>
+
+        <li>
+          <i class="fas fa-building me-1 text-success"></i>
+          <strong>Seção responsável:</strong> <?= htmlspecialchars($os['secao_rspns'] ?? '—') ?>
+        </li>
+
+        <li>
+          <i class="fas fa-tachometer-alt me-1 text-danger"></i>
+          <strong>Entrada:</strong>
+          <?= isset($os['odometro_horimetro'])
+              ? number_format($os['odometro_horimetro'], 2, ',', '.') .
+                (($os['tipo'] ?? '') === 'Eqp' ? ' h' : ' Km')
+              : '—' ?>
+        </li>
+
+        <li>
+          <?php if (($os['tipo'] ?? '') === 'Eqp'): ?>
+            <i class="fas fa-hourglass-half me-1"></i>
+            <strong>Horímetro atual:</strong> <?= htmlspecialchars($os['horimetro'] ?? '—') ?> h
+          <?php elseif (($os['tipo'] ?? '') === 'Vtr'): ?>
+            <i class="fas fa-road me-1"></i>
+            <strong>Odômetro atual:</strong> <?= htmlspecialchars($os['odometro'] ?? '—') ?> km
+          <?php else: ?>
+            <i class="fas fa-road me-1"></i>
+            <strong>Odômetro:</strong> <?= htmlspecialchars($os['odometro'] ?? '—') ?> km |
+            <i class="fas fa-hourglass-half me-1"></i>
+            <strong>Horímetro:</strong> <?= htmlspecialchars($os['horimetro'] ?? '—') ?> h
+          <?php endif; ?>
+        </li>
+      </ul>
+
+      <?php if (!empty($os['servicos_realizados'])): ?>
+        <div class="os-section-mini mb-2">
+          <small class="fw-bold text-success">
+            <i class="fas fa-tools me-1"></i> Serviços realizados
+          </small>
+          <div class="small text-body-secondary">
+            <?= htmlspecialchars($os['servicos_realizados']) ?>
+          </div>
+        </div>
+      <?php endif; ?>
+
+      <?php if (!empty($os['manutencoes_programadas'])): ?>
+        <div class="os-section-mini mb-2">
+          <small class="fw-bold text-warning">
+            <i class="fas fa-calendar-check me-1"></i> Manutenções programadas
+          </small>
+          <div class="small text-body-secondary">
+            <?= htmlspecialchars($os['manutencoes_programadas']) ?>
+          </div>
+        </div>
+      <?php endif; ?>
+
+      <?php if (!empty($os['materiais_utilizados'])): ?>
+        <div class="os-section-mini mb-2">
+          <small class="fw-bold text-primary">
+            <i class="fas fa-box-open me-1"></i> Materiais / Peças
+          </small>
+          <div class="small text-body-secondary">
+            <?= htmlspecialchars($os['materiais_utilizados']) ?>
+          </div>
+        </div>
+      <?php endif; ?>
+
+      <?php if (!empty($os['observacao'])): ?>
+        <div class="os-section-mini mb-3">
+          <small class="fw-bold text-info">
+            <i class="fas fa-info-circle me-1"></i> Observações
+          </small>
+          <div class="small text-body-secondary">
+            <?= htmlspecialchars($os['observacao']) ?>
+          </div>
+        </div>
+      <?php endif; ?>
+		
+		 <?php if (!empty($fotosOS)): ?>
+        <div class="mb-3">
+          <div class="small fw-bold text-secondary mb-1">
+            <i class="fas fa-images me-1"></i> Fotos da OS
+          </div>
+
+          <div class="os-photo-strip">
+            <?php foreach (array_slice($fotosOS, 0, 6) as $foto): ?>
+              <a href="<?= htmlspecialchars($foto) ?>" target="_blank">
+                <img 
+                  src="<?= htmlspecialchars($foto) ?>" 
+                  class="os-photo-thumb" 
+                  alt="Foto da OS"
+                  loading="lazy"
+                >
+              </a>
+            <?php endforeach; ?>
+
+            <?php if (count($fotosOS) > 6): ?>
+              <div class="os-photo-thumb d-flex align-items-center justify-content-center bg-light fw-bold text-muted">
+                +<?= count($fotosOS) - 6 ?>
+              </div>
+            <?php endif; ?>
+          </div>
+        </div>
+      <?php endif; ?>
+
+      <div class="mt-auto d-flex flex-wrap gap-2 os-actions">
+
+        <button class="btn btn-sm btn-outline-primary d-flex align-items-center"
+                onclick="verOS(<?= $os['os_id'] ?>)"
+                data-bs-toggle="modal"
+                data-bs-target="#modalVerOS">
+          <i class="fas fa-eye me-1"></i> Ver OS
+        </button>
+
+        <button class="btn btn-sm btn-outline-warning d-flex align-items-center"
+                onclick="editarOS(<?= $os['os_id'] ?>)"
+                data-bs-toggle="modal"
+                data-bs-target="#modalEditarOS">
+          <i class="fas fa-edit me-1"></i> Editar
+        </button>
+
+        <div class="dropdown">
+          <button class="btn btn-sm btn-outline-secondary dropdown-toggle"
+                  type="button"
+                  id="dropdownMenu<?= $os['os_id'] ?>"
+                  data-bs-toggle="dropdown"
+                  aria-expanded="false">
+            <i class="fas fa-print me-1"></i> Imprimir
+          </button>
+
+          <ul class="dropdown-menu dropdown-menu-end shadow-sm rounded" aria-labelledby="dropdownMenu<?= $os['os_id'] ?>">
+            <li>
+              <a href="#" class="dropdown-item text-danger btnExportarPDFos" data-id="<?= $os['os_id'] ?>">
+                <i class="fas fa-file-pdf me-2"></i> OS p/ preenchimento
+              </a>
+            </li>
+
+            <li>
+              <a href="pdf/ver_os_principal.php?id=<?= $os['os_id'] ?>" 
+                 target="_blank"
+                 class="dropdown-item text-primary">
+                <i class="fas fa-file-pdf me-2"></i> Ver OS preenchida
+              </a>
+            </li>
+          </ul>
+        </div>
+
+        <button type="button" 
+                class="btn btn-sm btn-outline-danger"
+                data-id="<?= $os['os_id'] ?>"
+                onclick="deletarOS(this)"
+                data-bs-toggle="tooltip"
+                title="Remover">
+          <i class="fas fa-times"></i>
+        </button>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<?php endwhile; ?>
 <?php else: ?>
 
 <div class="col-12">
-  <div class="alert alert-light border text-center py-4">
+  <div class="alert alert-light border text-center py-4 rounded-4 shadow-sm">
     <i class="fas fa-folder-open fa-2x text-secondary mb-2"></i><br>
     <strong>Nenhuma ordem de serviço encontrada.</strong>
   </div>
 </div>
 
 <?php endif; ?>
+</div>
 <!-- Paginação inferior -->
 <div class="paginacao mt-3">
   <?= renderPaginacaoOS($pagina, $totalPaginas, $limite, $queryString, 'includes/os/listagem.php'); ?>
@@ -1002,6 +1173,7 @@ if (!function_exists('dataValida')) {
                     <?php endforeach; ?>
                   </select>
                 </div>
+				  
                 <div class="col-md-4">
                   <label for="odometro_horimetro" class="form-label">Odômetro/Horímetro</label>
                   <input type="text" class="form-control" id="odometro_horimetro" name="odometro_horimetro" required>
@@ -1009,7 +1181,20 @@ if (!function_exists('dataValida')) {
               </div>
             </div>
           </div>
+<!-- ======================== BLOCO 2.1: MANUTENÇÃO PROGRAMADA ======================== -->
+<div class="card mb-3 shadow-sm" id="bloco-mnt-programada" style="display:none;">
+  <div class="card-header fw-bold bg-warning-subtle">
+    <i class="bi bi-calendar-check me-2"></i>Manutenção Programada
+  </div>
 
+  <div class="card-body">
+    <div id="area-planos-mnt-os">
+      <div class="alert alert-info mb-0">
+        Selecione uma viatura/equipamento para carregar os planos de manutenção.
+      </div>
+    </div>
+  </div>
+</div>
           <!-- ======================== BLOCO 3: DETALHES DA OS ======================== -->
           <div class="card mb-3 shadow-sm">
             <div class="card-header fw-bold bg-body-secondary">
@@ -1140,14 +1325,17 @@ if (!function_exists('dataValida')) {
       <option value="Manutenção Corretiva">Manutenção Corretiva</option>
               </select>
             </div>
+			  
+			
+			  
             <div class="col-md-4">
               <label class="form-label">Falhas Apresentadas/Serviço Solicitado</label>
               <textarea class="form-control" rows="1" name="falhas_solicitadas"></textarea>
             </div>
               
           </div>
-            
-
+			
+	
           <div class="row g-2 mb-3">
             <div class="col-md-3">
               <label class="form-label">Local da manutenção</label>
@@ -1184,6 +1372,20 @@ if (!function_exists('dataValida')) {
     </label>
     <textarea class="form-control shadow-sm" rows="3" name="observacoes"
       placeholder="Ex.: Pendências, peças aguardando, detalhe de diagnóstico, etc."></textarea>
+  </div>
+</div>
+			
+			  <div class="card mb-3 shadow-sm" id="bloco-edit-mnt-programada" style="display:none;">
+  <div class="card-header fw-bold bg-warning-subtle">
+    <i class="bi bi-calendar-check me-2"></i>Manutenção Programada
+  </div>
+
+  <div class="card-body">
+    <div id="area-edit-planos-mnt-os">
+      <div class="alert alert-info mb-0">
+        Carregando planos de manutenção programada...
+      </div>
+    </div>
   </div>
 </div>
             
@@ -1280,6 +1482,40 @@ if (!function_exists('dataValida')) {
                        </div>
                </div>
 
+			<hr>
+
+<h5 class="fw-bold">
+  <i class="fas fa-camera me-1"></i> Fotos da Ordem de Serviço
+</h5>
+
+<div class="alert alert-info py-2">
+  Envie fotos do serviço, peças, falhas encontradas ou andamento da manutenção.
+</div>
+
+<div class="row g-2 mb-3">
+  <div class="col-md-8">
+    <label class="form-label fw-bold">Selecionar fotos</label>
+<input type="file" class="form-control" id="fotos_os" accept="image/*" multiple>
+	  <input type="hidden" name="fotos_excluir" id="fotos_excluir" value="">
+  </div>
+
+  <div class="col-md-4">
+    <label class="form-label fw-bold">Legenda geral</label>
+    <input 
+      type="text" 
+      class="form-control" 
+      name="legenda_foto_os" 
+      placeholder="Ex.: Antes da manutenção, serviço finalizado..."
+    >
+  </div>
+</div>
+
+<div id="previewFotosOS" class="row g-2 mb-3"></div>
+
+<h6 class="fw-bold mt-3">Fotos já enviadas</h6>
+<div id="fotosExistentesOS" class="row g-2"></div>
+			
+			
           <!-- Botões -->
           <div class="text-end mt-4">
             <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Cancelar</button>
@@ -1419,6 +1655,8 @@ if (!function_exists('dataValida')) {
             </div>
           </div>
         </div>
+		  
+		
 
         <!-- Pedidos -->
         <div class="bg-white p-3 rounded shadow-sm mb-4">
@@ -1427,6 +1665,29 @@ if (!function_exists('dataValida')) {
             <p class="text-muted">Nenhum pedido cadastrado até o momento.</p>
           </div>
         </div>
+		  
+		  
+		 <!-- Manutenções Programadas Executadas -->
+<div class="bg-white p-3 rounded shadow-sm mb-4">
+  <h5 class="fw-bold text-secondary">
+    <i class="bi bi-calendar-check me-1"></i> Manutenções Programadas Executadas
+  </h5>
+  <div id="mntProgramadasExecutadasContainer">
+    <p class="text-muted mb-0">Nenhuma manutenção programada executada nesta OS.</p>
+  </div>
+</div>
+
+<!-- Fotos da OS -->
+<div class="bg-white p-3 rounded shadow-sm mb-4">
+  <h5 class="fw-bold text-secondary">
+    <i class="fas fa-camera me-1"></i> Fotos da Ordem de Serviço
+  </h5>
+  <div id="fotosOSVerContainer" class="row g-3">
+    <div class="col-12">
+      <p class="text-muted mb-0">Nenhuma foto enviada para esta OS.</p>
+    </div>
+  </div>
+</div>
 
         <!-- Logs -->
         <div class="bg-white p-3 rounded shadow-sm mb-3">

@@ -1,7 +1,22 @@
 <?php
 header('Content-Type: application/json; charset=utf-8');
-ob_start();
-error_reporting(E_ALL & ~E_NOTICE);
+
+$pagina_id = 49;
+require_once('../api/seguranca_json_cadastrar.php');
+
+//CSRF
+if (
+    empty($_POST['csrf_token']) ||
+    empty($_SESSION['csrf_token']) ||
+    !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])
+) {
+    http_response_code(403);
+    echo json_encode([
+        'success' => false,
+        'message' => 'Token inválido'
+    ]);
+    exit;
+}
 
 require_once('../../conexao/config.php');
 
@@ -93,7 +108,8 @@ try {
     ];
 }
 
-// LIMPA QUALQUER LIXO DE BUFFER ANTES DO JSON
-ob_clean();
+		// 🔒 NOVO TOKEN
+$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+
 echo json_encode($response);
 exit;

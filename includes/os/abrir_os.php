@@ -48,6 +48,14 @@ $tipo_mnt = post('tipo_mnt');
 $status = post('status');
 $causa_indisponibilidade = post('causa_indisponibilidade');
 $data_abertura = date('Y-m-d H:i:s');
+$manutencoes_programadas = $_POST['manutencoes_programadas'] ?? [];
+
+if (!is_array($manutencoes_programadas)) {
+    $manutencoes_programadas = [];
+}
+
+$manutencoes_programadas = array_filter($manutencoes_programadas, 'is_numeric');
+$manutencoes_programadas = array_map('intval', $manutencoes_programadas);
 
 // ===========================================
 // 🔒 Validação: Local, Viatura e Batalhão da OS devem ser do mesmo batalhão
@@ -149,21 +157,107 @@ $stmt->bind_param(
 // ===========================================
 // Execução e resposta
 // ===========================================
-if ($stmt->execute()) {
+$conexao->begin_transaction();
+
+try {
+    $stmt->execute();
+
+    $id_osprincipal = $stmt->insert_id;
+
+    // Registra manutenções programadas realizadas
+    if (!empty($manutencoes_programadas) && is_numeric($id_frota)) {
+
+        // Confere marca/modelo da frota
+        $sqlFrotaPlano = "
+            SELECT marca, modelo 
+            FROM frota 
+            WHERE id = ? 
+            LIMIT 1
+        ";
+        $stmtFrotaPlano = $conexao->prepare($sqlFrotaPlano);
+        $stmtFrotaPlano->bind_param("i", $id_frota);
+        $stmtFrotaPlano->execute();
+        $resFrotaPlano = $stmtFrotaPlano->get_result();
+        $dadosFrotaPlano = $resFrotaPlano->fetch_assoc();
+
+        if ($dadosFrotaPlano) {
+            $data_execucao = date('Y-m-d', strtotime($data_abertura));
+            $odometro_execucao = is_numeric($odometro_horimetro) ? (float)$odometro_horimetro : 0;
+
+            $stmtInsMnt = $conexao->prepare("
+                INSERT INTO mnt_execucoes (
+                    id_plano,
+                    id_frota,
+                    id_osprincipal,
+                    odometro_horimetro_execucao,
+                    data_execucao
+                ) VALUES (?, ?, ?, ?, ?)
+                ON DUPLICATE KEY UPDATE
+                    odometro_horimetro_execucao = VALUES(odometro_horimetro_execucao),
+                    data_execucao = VALUES(data_execucao),
+                    atualizado_em = CURRENT_TIMESTAMP
+            ");
+
+            foreach ($manutencoes_programadas as $id_plano) {
+
+                // Segurança: só aceita plano compatível com marca/modelo da frota
+                $stmtValidaPlano = $conexao->prepare("
+                    SELECT id 
+                    FROM mnt_planos
+                    WHERE id = ?
+                      AND id_marca = ?
+                      AND id_modelo = ?
+                      AND ativo = 1
+                    LIMIT 1
+                ");
+                $stmtValidaPlano->bind_param(
+                    "iii",
+                    $id_plano,
+                    $dadosFrotaPlano['marca'],
+                    $dadosFrotaPlano['modelo']
+                );
+                $stmtValidaPlano->execute();
+                $resValidaPlano = $stmtValidaPlano->get_result();
+
+                if ($resValidaPlano->num_rows === 0) {
+                    continue;
+                }
+
+                $stmtInsMnt->bind_param(
+                    "iiids",
+                    $id_plano,
+                    $id_frota,
+                    $id_osprincipal,
+                    $odometro_execucao,
+                    $data_execucao
+                );
+
+                $stmtInsMnt->execute();
+            }
+        }
+    }
+
     $descricao = "Nova OS aberta: {$prefixo_sga} - {$problema} ({$status})";
     registrar_log($conexao, $aberta_por, 'Abrir OS', $descricao);
+
+    $conexao->commit();
 
     echo json_encode([
         "status" => "sucesso",
         "mensagem" => "Ordem de serviço aberta com sucesso!",
+        "id_os" => $id_osprincipal,
         "data_abertura" => $data_abertura
     ]);
-} else {
+
+} catch (Throwable $e) {
+    $conexao->rollback();
+
     echo json_encode([
         "status" => "erro",
-        "mensagem" => "Erro ao salvar no banco: " . $stmt->error
+        "mensagem" => "Erro ao salvar OS: " . $e->getMessage()
     ]);
 }
 
 ob_end_flush();
+exit;
 ?>

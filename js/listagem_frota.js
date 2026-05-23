@@ -1,4 +1,170 @@
 window.inicializarListagemFrota = function() {
+	
+
+	
+// DADOS DO EMPRÉSTIMO / DEVOLUÇÃO DE VIATURA
+window.abrirModalEmprestimo = function(id, acao) {
+
+    document.getElementById('emprestimo-id').value = id;
+    document.getElementById('emprestimo-acao').value = acao;
+
+    const titulo = document.getElementById('titulo-modal-emprestimo');
+    const botao = document.getElementById('btn-submit-emprestimo');
+
+    const textoBatalhao = document.getElementById('emprestimo-batalhao-atual-texto');
+    const selectDestino = document.getElementById('emprestimo-batalhao-destino');
+    const inputOrigem = document.getElementById('emprestimo-batalhao-origem');
+    const textoDestinoDevolucao = document.getElementById('texto-destino-devolucao');
+
+    textoBatalhao.innerHTML = 'Carregando...';
+
+    // Reset do select
+    selectDestino.disabled = false;
+    selectDestino.value = '';
+    textoDestinoDevolucao.classList.add('d-none');
+
+    Array.from(selectDestino.options).forEach(opt => {
+        opt.hidden = false;
+        opt.disabled = false;
+    });
+
+    if (acao === 'emprestimo') {
+        titulo.innerText = 'Empréstimo de ativo';
+        botao.innerText = 'Realizar empréstimo';
+        botao.className = 'btn btn-primary';
+    } else {
+        titulo.innerText = 'Devolução de ativo';
+        botao.innerText = 'Realizar devolução';
+        botao.className = 'btn btn-success';
+    }
+
+    fetch(`includes/frota/dados_emprestimo.php?id=${id}`)
+        .then(res => res.json())
+        .then(data => {
+
+            if (!data.sucesso) {
+                textoBatalhao.innerHTML =
+                    '<span class="text-danger">Erro ao carregar</span>';
+                return;
+            }
+
+            textoBatalhao.innerHTML = `<strong>${data.batalhao_atual}</strong>`;
+
+            inputOrigem.value = data.batalhao_origem_id;
+
+            if (acao === 'devolucao') {
+
+                selectDestino.value = data.batalhao_origem_id;
+
+                // Se a opção não existir no select, cria uma opção temporária
+                if (selectDestino.value != data.batalhao_origem_id) {
+                    const option = document.createElement('option');
+                    option.value = data.batalhao_origem_id;
+                    option.textContent = data.batalhao_origem;
+                    option.selected = true;
+                    selectDestino.appendChild(option);
+                }
+
+                Array.from(selectDestino.options).forEach(opt => {
+                    if (opt.value != data.batalhao_origem_id) {
+                        opt.hidden = true;
+                    }
+                });
+
+                selectDestino.disabled = true;
+                textoDestinoDevolucao.classList.remove('d-none');
+            }
+
+        })
+        .catch(() => {
+            textoBatalhao.innerHTML =
+                '<span class="text-danger">Erro ao carregar</span>';
+        });
+};
+// ==============================
+// SUBMIT EMPRESTIMO DE VIATURA
+// ==============================
+const formEmprestimo =
+    document.getElementById('form-emprestimo-frota');
+
+if (formEmprestimo) {
+
+    formEmprestimo.addEventListener('submit', function(e) {
+
+        e.preventDefault();
+
+        const formData = new FormData(formEmprestimo);
+
+        fetch('includes/frota/emprestimo_frota.php', {
+
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+
+        })
+
+        .then(res => {
+
+            if (!res.ok) {
+                throw new Error('Erro HTTP ' + res.status);
+            }
+
+            return res.json();
+
+        })
+
+        .then(data => {
+
+            if (data.status === 'ok') {
+
+                const modalEl =
+                    document.getElementById('modalEmprestimoFrota');
+
+                const modal =
+                    bootstrap.Modal.getInstance(modalEl);
+
+                if (modal) modal.hide();
+
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Sucesso',
+                    text: data.mensagem,
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+
+                if (typeof carregarPagina === 'function') {
+                    carregarPagina('includes/frota/listagem.php');
+                }
+
+            } else {
+
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Erro',
+                    text: data.mensagem
+                });
+
+            }
+
+        })
+
+        .catch(err => {
+
+            Swal.fire({
+                icon: 'error',
+                title: 'Erro',
+                text: err.message
+            });
+
+        });
+
+    });
+
+}
+	
   // PÁGINA FROTA       
   const form = document.getElementById('filtroFrotaForm');
 
@@ -322,10 +488,6 @@ if (ods.length === 0) {
 };
 
 
-
-
-
-
 // EDITAR FROTA - ENVIAR DADOS PRO BANCO
 const formEditarFrota = document.getElementById('form-editar-frota');
 
@@ -336,7 +498,7 @@ if (formEditarFrota) {
     e.preventDefault();
 
     const formData = new FormData(formEditarFrota);
-
+	  
     fetch('includes/frota/editar_frota.php', {
       method: 'POST',
       body: formData,
@@ -614,12 +776,82 @@ if (btnExportar) {
     });
 })();
 
-
-
-
-
- 
 };
+		  
+// Deletar Frota - Página Listagem da Frota
+function deletarFrota(botao) {
+  const id = botao.getAttribute('data-id');
+  const token = botao.dataset.token; // pega o token
+
+  Swal.fire({
+    title: 'Deletar frota?',
+    text: "Essa ação não poderá ser desfeita. Deseja realmente excluir este item?",
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonText: 'Sim, deletar',
+    cancelButtonText: 'Cancelar'
+  }).then((result) => {
+    if (!result.isConfirmed) return;
+
+    const formData = new FormData();
+    formData.append('id', id);
+      formData.append('csrf_token', token); // 🔒 envia o token
+
+    fetch('includes/frota/deletar_frota.php', {
+      method: 'POST',
+      body: formData
+    })
+    .then(async (response) => {
+      const text = await response.text();
+
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        console.error('Resposta NÃO-JSON do servidor:', text);
+        throw new Error('Servidor retornou resposta inválida (não JSON). Veja o console.');
+      }
+
+      if (!response.ok && !data.success) {
+        const msg = data.message || 'Erro no servidor.';
+        const dbg = data.debug ? `\n\n${data.debug}` : '';
+        throw new Error(msg + dbg);
+      }
+
+      return data;
+    })
+    .then((data) => {
+      if (data.success) {
+        Swal.fire({
+          icon: 'success',
+          title: 'Deletado!',
+          text: 'Frota excluída com sucesso.',
+          timer: 1500,
+          showConfirmButton: false
+        }).then(() => {
+          carregarPagina('includes/frota/listagem.php');
+        });
+      } else {
+        Swal.fire({
+          icon: 'error',
+          title: 'Erro',
+          text: data.message || 'Erro ao deletar frota.',
+          footer: data.debug ? `<small style="color:#666">${String(data.debug).replace(/</g,'&lt;')}</small>` : ''
+        });
+      }
+    })
+    .catch((error) => {
+      Swal.fire({
+        icon: 'error',
+        title: 'Falha ao deletar',
+        text: error.message
+      });
+    });
+  });
+}
+	
+	
+
 
 
 

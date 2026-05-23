@@ -1,6 +1,33 @@
 <?php
 header('Content-Type: text/html; charset=utf-8');
 session_start();
+require_once '../api/seguranca.php';
+
+$permissoes = verificarPermissao([21]);
+
+$pode_cadastrar = $permissoes['cadastrar'];
+$pode_editar    = $permissoes['editar'];
+$pode_deletar   = $permissoes['deletar'];
+$pode_importar  = $permissoes['importar'];
+$pode_exportar  = $permissoes['exportar'];
+
+if (!isset($_SESSION['usuario_id'])) {
+  http_response_code(401);
+  echo "<div class='alert alert-danger'>Sessão expirada. Faça login novamente.</div>";
+  exit;
+}
+
+// BLOQUEAR ACESSO DIRETO VIA URL
+if (
+    !isset($_SERVER['HTTP_X_REQUESTED_WITH']) ||
+    strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) !== 'xmlhttprequest'
+) {
+    http_response_code(403);
+    echo "<div class='alert alert-danger'>Acesso direto não permitido.</div>";
+    exit;
+}
+
+
 include_once('../../conexao/config.php');
 
 // =============================
@@ -224,13 +251,18 @@ $filtrosVisiveis = !empty($_GET);
         <h6 class="text-muted">Fornecedores cadastrados</h6>
       </div>
         <div>
+			<?php if($pode_cadastrar): ?>
         <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalCadastroFornecedor">
           <i class="fa fa-user-plus me-1"></i> Cadastrar Fornecedor
         </button>
+			<?php endif; ?>
+			
+			<?php if($pode_importar): ?>
          <!-- Botão para abrir modal -->
 <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalImportarFornecedores">
   Importar Fornecedores
 </button>
+			<?php endif; ?>
       </div>
     </div>
    <!-- Botão para mostrar/ocultar filtros -->
@@ -414,19 +446,25 @@ $batalhao_filtro = $_GET['batalhao'] ?? '';
 
         <!-- Ações -->
         <div class="d-flex gap-2 flex-wrap">
+			
+			<?php if($pode_editar): ?>
           <button class="btn btn-sm btn-primary px-3 shadow-sm d-flex align-items-center"
         onclick="editarFORN(<?= $forn['id'] ?>)"
         data-bs-toggle="modal"
         data-bs-target="#modalEditarFORN">
     <i class="fa-solid fa-pen-to-square me-1"></i> Editar
 </button>
-
+<?php endif; ?>
+			
+			<?php if($pode_deletar): ?>
           <button type="button"
                   class="btn btn-sm btn-danger px-3 shadow-sm d-flex align-items-center"
                   data-id="<?= $forn['id'] ?>"
+				  data-token="<?= $_SESSION['csrf_token'] ?>"
                   onclick="deletarFORN(this)">
            <i class="fas fa-trash-alt me-1"></i> Excluir
           </button>
+			<?php endif; ?>
         </div>
 
       </div>
@@ -441,13 +479,7 @@ $batalhao_filtro = $_GET['batalhao'] ?? '';
 <div class="paginacao">
   <?= renderPaginacaoForn($pagina, $totalPaginas, $limite, $queryString, 'includes/fin_fornecedores/listagem.php'); ?>
 </div>
-
-
-
-
-
-
-
+<?php if($pode_cadastrar): ?>
 <!-- Modal de Cadastro -->
     <div class="modal fade" id="modalCadastroFornecedor" tabindex="-1" aria-labelledby="modalLabel" aria-hidden="true">
       <div class="modal-dialog modal-dialog-centered modal-lg">
@@ -504,7 +536,7 @@ $batalhao_filtro = $_GET['batalhao'] ?? '';
     <label for="contato_email" class="form-label">E-mail da empresa</label>
     <input type="email" class="form-control" id="contato_email" name="contato_email" required>
   </div>
-
+	  <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
   <button type="submit" class="btn btn-success">Cadastrar Fornecedor</button>
               <input type="hidden" id="edit-id" name="id">
 </form>
@@ -515,9 +547,9 @@ $batalhao_filtro = $_GET['batalhao'] ?? '';
         </div>
       </div>
     </div>
+      <?php endif; ?>
       
-      
-      
+			<?php if($pode_editar): ?>
   <!-- Modal de Edição -->
     <div class="modal fade" id="modalEditarFORN" tabindex="-1" aria-labelledby="modalEditarFORNLabel" aria-hidden="true">
       <div class="modal-dialog modal-dialog-centered modal-lg">
@@ -570,6 +602,8 @@ $batalhao_filtro = $_GET['batalhao'] ?? '';
   </div>
 
   <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Cancelar</button>
+				  
+	  <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
             <button type="submit" class="btn btn-success">Salvar alterações</button>
               <input type="hidden" id="edit-id" name="id">
 </form>
@@ -580,7 +614,8 @@ $batalhao_filtro = $_GET['batalhao'] ?? '';
         </div>
       </div>
     </div>
-      
+      <?php endif; ?>
+			<?php if($pode_importar): ?>
       <!-- Modal de Importação -->
 <div class="modal fade" id="modalImportarFornecedores" tabindex="-1">
   <div class="modal-dialog">
@@ -643,6 +678,7 @@ $batalhao_filtro = $_GET['batalhao'] ?? '';
         </div>
 
         <div class="modal-footer">
+	  <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
           <button type="submit" class="btn btn-primary">Importar</button>
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
         </div>
@@ -651,10 +687,7 @@ $batalhao_filtro = $_GET['batalhao'] ?? '';
     </div>
   </div>
 </div>
-
-
-    
-
+<?php endif; ?>
 <!-- Script da página de Cadastro de Fornecedores -->
 <script>
     window.funcaoInicializacao = 'inicializarFinFornecedores';

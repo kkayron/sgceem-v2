@@ -70,6 +70,7 @@ if (formEditarTipoRV) {
 // ===================== DELETAR TIPO VTR / EQP =====================
 window.deletarTipoVtrEqp = function(botao) {
   const id = botao.getAttribute('data-id');
+  const token = botao.dataset.token; // pega o token
 
   Swal.fire({
     title: 'Deletar Categoria?',
@@ -82,6 +83,7 @@ window.deletarTipoVtrEqp = function(botao) {
     if (result.isConfirmed) {
       const formData = new FormData();
       formData.append('id', id);
+      formData.append('csrf_token', token); // 🔒 envia o token
 
       fetch('includes/fin_tipos_vtr/deletar_tipo.php', {
         method: 'POST',

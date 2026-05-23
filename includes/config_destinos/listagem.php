@@ -3,6 +3,17 @@ header('Content-Type: text/html; charset=utf-8');
 session_start();
 require_once '../../conexao/config.php';
 
+require_once '../api/seguranca.php';
+
+$permissoes = verificarPermissao([35]);
+
+$pode_cadastrar = $permissoes['cadastrar'];
+$pode_editar    = $permissoes['editar'];
+$pode_deletar   = $permissoes['deletar'];
+$pode_importar  = $permissoes['importar'];
+$pode_exportar  = $permissoes['exportar'];
+
+
 // ============================
 // BATALHÕES PERMITIDOS AO USUÁRIO
 // ============================
@@ -171,10 +182,11 @@ $queryString = http_build_query($paramsGET);
         <h6 class="text-muted">Produtos cadastrados</h6>
       </div>
         <div>
+			<?php if($pode_cadastrar): ?>
         <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalCadastroDestino">
           <i class="fa fa-user-plus me-1"></i> Cadastrar Destino
         </button>
-    
+    <?php endif; ?>
       </div>
     </div>
   <!-- Botão para mostrar/ocultar filtros -->
@@ -336,20 +348,23 @@ $queryString = http_build_query($paramsGET);
 
             <!-- Botões -->
             <div class="d-flex gap-2 flex-wrap justify-content-end mt-3">
+				
+			<?php if($pode_editar): ?>
               <button class="btn btn-sm btn-outline-warning d-flex align-items-center"
                       onclick="editarDestino(<?= $dest['id'] ?>)"
                       data-bs-toggle="modal"
                       data-bs-target="#modalEditarDestino">
                 <i class="fas fa-edit me-1"></i> Editar
               </button>
-
+				<?php endif; ?>
+			<?php if($pode_deletar): ?>
              <button type="button"
     class="btn btn-sm btn-outline-danger d-flex align-items-center btn-deletar-destino"
     data-id="<?= $dest['id'] ?>"
     onclick="deletarDestino(this)">
   <i class="fas fa-trash-alt me-1"></i> Excluir
 </button>
-
+				<?php endif; ?>
             </div>
           </div>
         <?php endwhile; ?>
@@ -364,7 +379,7 @@ $queryString = http_build_query($paramsGET);
     <?php endif; ?>
   </div>
 </div>
-
+<?php if($pode_cadastrar): ?>
 <!-- Modal de Cadastro de Destino -->
 <div class="modal fade" id="modalCadastroDestino" tabindex="-1" aria-labelledby="modalCadastroDestinoLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
@@ -454,6 +469,8 @@ $queryString = http_build_query($paramsGET);
     </div>
   </div>
 </div>
+	  <?php endif; ?>
+	  <?php if($pode_editar): ?>
 <!-- Modal Editar Destino -->
 <div class="modal fade" id="modalEditarDestino" tabindex="-1">
   <div class="modal-dialog">
@@ -500,6 +517,7 @@ $queryString = http_build_query($paramsGET);
   </div>
 </div>
 
+	  <?php endif; ?>
 
 <!-- Script da página de Cadastro de Fornecedores -->
 <script>

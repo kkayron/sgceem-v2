@@ -361,6 +361,7 @@ $sql = "
 
           <?php if ($pode_cadastrar): ?>
           <div class="col-12 text-end mt-3">
+           <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
             <button type="submit" class="btn btn-success px-4">
               <i class="fas fa-save me-1"></i> Cadastrar Viatura/Equipamento
             </button>
@@ -428,6 +429,7 @@ $sql = "
           </a>
         </div>
         <div class="modal-footer">
+         <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
           <button type="submit" class="btn btn-primary">Importar</button>
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
         </div>

@@ -6,7 +6,25 @@ require '../../vendor/autoload.php'; // PhpSpreadsheet
 
 use PhpOffice\PhpSpreadsheet\IOFactory;
 
-header("Content-Type: application/json; charset=utf-8");
+$pagina_id = 24;
+
+require_once('../api/seguranca_json_importar.php');
+
+header('Content-Type: application/json; charset=utf-8');
+
+// 🔒 VALIDAR CSRF TOKEN
+if (
+    empty($_POST['csrf_token']) ||
+    empty($_SESSION['csrf_token']) ||
+    !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])
+) {
+    http_response_code(403);
+    echo json_encode([
+        'status' => 'erro',
+        'mensagem' => 'Token inválido.'
+    ]);
+    exit;
+}
 
 $usuarioLogado = $_SESSION['usuario_id'] ?? 0;
 

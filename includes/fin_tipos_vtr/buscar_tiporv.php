@@ -1,5 +1,9 @@
 <?php
 header('Content-Type: application/json; charset=utf-8');
+
+$pagina_id = 49;
+require_once('../api/seguranca_json.php');
+
 include_once('../../conexao/config.php');
 
 try {

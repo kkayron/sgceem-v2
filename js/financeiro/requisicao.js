@@ -239,6 +239,7 @@ window.verRequisicao = function(id) {
 
 window.deletarRequisicao = function(botao) {
   const id = botao.getAttribute('data-id');
+  const token = botao.dataset.token; //  pega o token
 
   Swal.fire({
     title: 'Deletar Requisição?',
@@ -251,6 +252,7 @@ window.deletarRequisicao = function(botao) {
     if (result.isConfirmed) {
       const formData = new FormData();
       formData.append('id', id);
+      formData.append('csrf_token', token); // 🔒 envia o token
 
       fetch('includes/fin_requisicoes/deletar_requisicao.php', {
         method: 'POST',

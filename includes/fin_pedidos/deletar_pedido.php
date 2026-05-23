@@ -1,9 +1,27 @@
 <?php
 session_start();
+
+header('Content-Type: application/json; charset=utf-8');
+$pagina_ids = [17, 25];
+require_once('../api/seguranca_json_deletar.php');
+
+//CSRF
+if (
+    empty($_POST['csrf_token']) ||
+    empty($_SESSION['csrf_token']) ||
+    !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])
+) {
+    http_response_code(403);
+    echo json_encode([
+        'success' => false,
+        'message' => 'Token inválido'
+    ]);
+    exit;
+}
+
 include_once("../../conexao/config.php");
 include_once("../../includes/funcoes/log_pedido_financeiro.php");
 
-header('Content-Type: application/json; charset=utf-8');
 
 $id = $_POST['id'] ?? null;
 
@@ -53,6 +71,8 @@ if ($stmt_delete_pedido->execute()) {
     $id_os          // os_id (se quiser, pode passar se existir)
 );
 
+		// 🔒 NOVO TOKEN
+$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 
     echo json_encode(['success' => true]);
 } else {

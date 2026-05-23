@@ -41,7 +41,7 @@ include_once('conexao/config.php'); // deve fornecer a variável $conexao
 // ======================================================================
 // 1) BUSCAR TÓPICOS PRINCIPAIS
 // ======================================================================
-$sqlMenu = "SELECT * FROM paginas_principal ORDER BY id ASC";
+$sqlMenu = "SELECT * FROM paginas_principal ORDER BY CAST(ordem AS UNSIGNED) ASC";
 $menuPrincipal = $conexao->query($sqlMenu);
 
 // ======================================================================

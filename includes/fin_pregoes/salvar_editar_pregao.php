@@ -1,7 +1,24 @@
 <?php
+session_start();
+$pagina_id = 24;
+require_once('../api/seguranca_json_editar.php');
+
+//CSRF
+if (
+    empty($_POST['csrf_token']) ||
+    empty($_SESSION['csrf_token']) ||
+    !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])
+) {
+    http_response_code(403);
+    echo json_encode([
+        'success' => false,
+        'message' => 'Token inválido'
+    ]);
+    exit;
+}
+
 include '../../conexao/config.php';
 include '../funcoes/log.php';
-session_start();
 
 $id_pregao = $_POST['id'] ?? null;
 if (!$id_pregao) {
@@ -144,6 +161,10 @@ foreach ($itensAntigos as $id_antigo => $item_antigo) {
         }
     }
 }
+
+		// 🔒 NOVO TOKEN
+$_SESSION['csrf_token'] = bin2hex(random_bytes(32));	
+
 // 7. Log
 $descricaoLog = "Alterações no Pregão ID $id_pregao: ";
 if (!empty($alteracoes)) {

@@ -5,9 +5,22 @@ $pagina_id = 30;
 
 require_once('../api/seguranca_json_editar.php');
 
+// 🔒 VALIDAR CSRF TOKEN
+if (
+    empty($_POST['csrf_token']) ||
+    empty($_SESSION['csrf_token']) ||
+    !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])
+) {
+    http_response_code(403);
+    echo json_encode([
+        'status' => 'erro',
+        'mensagem' => 'Token inválido.'
+    ]);
+    exit;
+}
+
 
 include '../funcoes/log_os.php';
-session_start();
 
 $id_prod = $_POST['id'] ?? null;
 if (!$id_prod) {

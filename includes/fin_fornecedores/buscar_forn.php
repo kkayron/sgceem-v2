@@ -1,7 +1,12 @@
 <?php
-include '../../conexao/config.php';
 
 header('Content-Type: application/json');
+
+$pagina_id = 21;
+
+require_once('../api/seguranca_json.php');
+
+include '../../conexao/config.php';
 
 $id = intval($_GET['id'] ?? 0);
 $retorno = ['sucesso' => false];

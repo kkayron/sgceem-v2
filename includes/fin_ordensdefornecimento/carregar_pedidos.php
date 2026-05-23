@@ -1,7 +1,30 @@
 <?php
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
+require_once '../api/seguranca.php';
+
+$permissoes = verificarPermissao([46]);
+
+$pode_cadastrar = $permissoes['cadastrar'];
+$pode_editar    = $permissoes['editar'];
+$pode_deletar   = $permissoes['deletar'];
+$pode_importar  = $permissoes['importar'];
+$pode_exportar  = $permissoes['exportar'];
+
+if (!isset($_SESSION['usuario_id'])) {
+  http_response_code(401);
+  echo "<div class='alert alert-danger'>Sessão expirada. Faça login novamente.</div>";
+  exit;
+}
+
+// BLOQUEAR ACESSO DIRETO VIA URL
+if (
+    !isset($_SERVER['HTTP_X_REQUESTED_WITH']) ||
+    strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) !== 'xmlhttprequest'
+) {
+    http_response_code(403);
+    echo "<div class='alert alert-danger'>Acesso direto não permitido.</div>";
+    exit;
+}
+
 include_once('../../conexao/config.php');
 
 $id_ordem = (int) ($_GET['id_ordem'] ?? 0);

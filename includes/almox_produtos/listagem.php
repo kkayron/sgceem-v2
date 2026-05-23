@@ -575,7 +575,7 @@ $batalhao_filtro = $_GET['batalhao'] ?? '';
   </div>
 </div>
 
-      
+      <?php if($pode_editar): ?>
       <!-- Modal de Edição de Produto -->
 <div class="modal fade" id="modalEditarProduto" tabindex="-1" aria-labelledby="modalEditarProdutoLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-lg">
@@ -638,6 +638,7 @@ $batalhao_filtro = $_GET['batalhao'] ?? '';
           </div>
 
           <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Cancelar</button>
+			<input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
           <button type="submit" class="btn btn-success">Salvar Alterações</button>
           <input type="hidden" id="edit-id-produto" name="id">
         </form>
@@ -645,7 +646,7 @@ $batalhao_filtro = $_GET['batalhao'] ?? '';
     </div>
   </div>
 </div>
-
+<?php endif; ?>
 <!-- Script da página de Cadastro de Fornecedores -->
 <script>
     window.funcaoInicializacao = 'inicializarAlmoxProdutos';

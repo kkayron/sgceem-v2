@@ -1,60 +1,39 @@
 <?php
-// ========================================
-// 🔒 Bloqueia acesso direto à página
-// ========================================
+// ==============================
+// 🔹 Segurança
+// ==============================
+header('Content-Type: text/html; charset=utf-8');
+session_start();
+
+require_once '../api/seguranca.php';
+
+$permissoes = verificarPermissao([14]);
+
+$pode_cadastrar = $permissoes['cadastrar'];
+$pode_editar    = $permissoes['editar'];
+$pode_deletar   = $permissoes['deletar'];
+$pode_importar  = $permissoes['importar'];
+$pode_exportar  = $permissoes['exportar'];
+$pode_autorizar  = $permissoes['autorizar'];
+
+if (!isset($_SESSION['usuario_id'])) {
+  http_response_code(401);
+  echo "<div class='alert alert-danger'>Sessão expirada. Faça login novamente.</div>";
+  exit;
+}
+
+// BLOQUEAR ACESSO DIRETO VIA URL
 if (
     !isset($_SERVER['HTTP_X_REQUESTED_WITH']) ||
     strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) !== 'xmlhttprequest'
 ) {
     http_response_code(403);
-    die('Acesso direto não permitido.');
-}
-
-header('Content-Type: text/html; charset=utf-8');
-session_start();
-include_once('../../conexao/config.php');
-
-// ID da página correspondente no banco
-$pagina_id = intval(2); // <--- ajuste conforme o ID da página de cadastro de Vtr/Eqp no banco
-
-// Verifica login e permissão de acesso
-if (!isset($_SESSION['usuario_id']) || empty($_SESSION['usuario'])) {
-    http_response_code(401);
-    exit('Sessão inválida.');
-}
-
-if (empty($_SESSION['permissoes'][$pagina_id]['pode_acessar'])) {
-    ?>
-    <!DOCTYPE html>
-    <html lang="pt-BR">
-    <head>
-        <meta charset="UTF-8">
-        <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    </head>
-    <body>
-        <script>
-            Swal.fire({
-                icon: 'error',
-                title: 'Acesso Negado',
-                text: 'Você não possui permissão para acessar esta página.',
-                confirmButtonText: 'Voltar ao Painel',
-                allowOutsideClick: false
-            }).then(() => window.location.href = 'index.php#partes/conteudo.php');
-        </script>
-    </body>
-    </html>
-    <?php
+    echo "<div class='alert alert-danger'>Acesso direto não permitido.</div>";
     exit;
 }
 
-// Permissões específicas
-$pode_cadastrar = $_SESSION['permissoes'][$pagina_id]['pode_cadastrar'] ?? false;
-$pode_editar    = $_SESSION['permissoes'][$pagina_id]['pode_editar'] ?? false;
-$pode_deletar   = $_SESSION['permissoes'][$pagina_id]['pode_deletar'] ?? false;
-$pode_importar   = $_SESSION['permissoes'][$pagina_id]['pode_importar'] ?? false;
-$pode_exportar   = $_SESSION['permissoes'][$pagina_id]['pode_exportar'] ?? false;
-?>
-<?php
+include_once('../../conexao/config.php');
+
 // ==============================
 // 🔹 Dados do usuário logado
 // ==============================
@@ -149,6 +128,15 @@ if (!empty($_GET['batalhao'])) {
 }
 
 // ==============================
+// 🔹 Filtro do batalhão proprietário (manual)
+// ==============================
+if (!empty($_GET['batalhao_origem'])) {
+    $batalhaoFiltro2 = (int) $_GET['batalhao_origem'];
+	$filtros[] = "f.batalhao_origem = ?";
+	$params[] = $batalhaoFiltro2;
+    $tipos .= 'i';
+} 
+// ==============================
 // 🔹 Consulta total (para paginação)
 // ==============================
 $sqlTotal = "SELECT COUNT(*) AS total FROM frota f";
@@ -173,11 +161,14 @@ $sql = "SELECT
             cm.marca AS nome_marca, 
             md.nome_modelo AS nome_modelo,
             om.nome AS nome_om,
-            om.abreviatura AS sigla_om
+            om.abreviatura AS sigla_om,
+            om_origem.abreviatura AS sigla_om_origem
         FROM frota f
         LEFT JOIN config_marcas cm ON f.marca = cm.id
         LEFT JOIN config_modelos md ON f.modelo = md.id
-        LEFT JOIN organizacoes_militares om ON f.batalhao = om.id";
+        LEFT JOIN organizacoes_militares om ON f.batalhao = om.id
+	    LEFT JOIN organizacoes_militares om_origem ON f.batalhao_origem = om_origem.id";
+
 
 if (!empty($filtros)) {
     $sql .= " WHERE " . implode(" AND ", $filtros);
@@ -192,6 +183,8 @@ $stmt = $conexao->prepare($sql);
 $stmt->bind_param($tipos, ...$params);
 $stmt->execute();
 $result = $stmt->get_result();
+
+
 
 // ==============================
 // 🔹 Função de paginação (Responsiva)
@@ -524,7 +517,7 @@ $filtrosVisiveis = !empty($_GET);
             // 🔹 Select de batalhões (OMs visíveis)
             // ====================================
             echo '<div class="col-md-3">';
-            echo '<label class="form-label fw-semibold">Batalhão</label>';
+            echo '<label class="form-label fw-semibold">Organização Militar</label>';
             echo '<select name="batalhao" class="form-select">';
             echo '<option value="">Todos</option>';
             foreach ($oms_visiveis as $id => $nome) {
@@ -534,6 +527,73 @@ $filtrosVisiveis = !empty($_GET);
             echo '</select>';
             echo '</div>';
 
+			  // ====================================
+// 🔹 Select de OMs proprietárias
+// que possuem ativos emprestados
+// para OMs visíveis ao usuário
+// ====================================
+echo '<div class="col-md-3">';
+echo '<label class="form-label fw-semibold">OM Proprietária</label>';
+echo '<select name="batalhao_origem" class="form-select">';
+echo '<option value="">Todas</option>';
+
+$idsOmsVisiveis = array_keys($oms_visiveis);
+
+if (!empty($idsOmsVisiveis)) {
+
+    $placeholders = implode(',', array_fill(0, count($idsOmsVisiveis), '?'));
+    $types = str_repeat('i', count($idsOmsVisiveis));
+
+    $sqlOmsOrigem = "
+        SELECT DISTINCT
+            om.id,
+            om.nome,
+            om.abreviatura
+        FROM frota f
+        INNER JOIN organizacoes_militares om
+            ON om.id = f.batalhao_origem
+        WHERE f.batalhao IN ($placeholders)
+          AND f.batalhao_origem IS NOT NULL
+          AND f.batalhao_origem <> 0
+          AND f.batalhao <> f.batalhao_origem
+        ORDER BY om.nome
+    ";
+
+    $stmtOrigem = $conexao->prepare($sqlOmsOrigem);
+
+    $paramsOrigem = array_merge([$types], $idsOmsVisiveis);
+    $tmpOrigem = [];
+
+    foreach ($paramsOrigem as $k => $v) {
+        $tmpOrigem[$k] = &$paramsOrigem[$k];
+    }
+
+    call_user_func_array([$stmtOrigem, 'bind_param'], $tmpOrigem);
+
+    $stmtOrigem->execute();
+    $resOrigem = $stmtOrigem->get_result();
+
+    while ($om = $resOrigem->fetch_assoc()) {
+
+        $id = (int)$om['id'];
+
+        $nome = htmlspecialchars(
+            $om['abreviatura'] ?: $om['nome']
+        );
+
+        $sel = (
+            isset($_GET['batalhao_origem'])
+            && (int)$_GET['batalhao_origem'] === $id
+        ) ? 'selected' : '';
+
+        echo "<option value=\"{$id}\" {$sel}>{$nome}</option>";
+    }
+
+    $stmtOrigem->close();
+}
+
+echo '</select>';
+echo '</div>';
             // ====================================
             // 🔹 Outros filtros padrão
             // ====================================
@@ -607,6 +667,47 @@ if ($result->num_rows > 0) {
                     <i class="fa fa-edit"></i>
                 </button>';
         }
+		
+		$btnEmprestimo = '';
+
+if (!empty($pode_editar)) {
+
+    $usuario_batalhao = $_SESSION['usuario']['batalhao'] ?? 0;
+
+    $batalhaoAtual = (int)($row['batalhao'] ?? 0);
+    $batalhaoOrigem = (int)($row['batalhao_origem'] ?? 0);
+
+    // Se batalhao_origem estiver vazio, NULL ou 0,
+    // considera o batalhao atual como origem
+    if ($batalhaoOrigem <= 0) {
+        $batalhaoOrigem = $batalhaoAtual;
+    }
+
+    if ($batalhaoAtual === $batalhaoOrigem) {
+
+        $btnEmprestimo = '
+            <button type="button"
+                    class="btn btn-primary btn-sm"
+                    data-bs-toggle="modal"
+                    data-bs-target="#modalEmprestimoFrota"
+                    onclick="abrirModalEmprestimo(' . $id . ', \'emprestimo\')"
+                    title="Realizar empréstimo">
+                <i class="fa fa-share"></i>
+            </button>';
+
+    } else {
+
+        $btnEmprestimo = '
+            <button type="button"
+                    class="btn btn-success btn-sm"
+                    data-bs-toggle="modal"
+                    data-bs-target="#modalEmprestimoFrota"
+                    onclick="abrirModalEmprestimo(' . $id . ', \'devolucao\')"
+                    title="Realizar devolução">
+                <i class="fa fa-undo"></i>
+            </button>';
+    }
+}
         
         $btnDeletar = '';
          if (!empty($pode_deletar)) {
@@ -614,12 +715,26 @@ if ($result->num_rows > 0) {
                 <button type="button"
                         class="btn btn-sm btn-danger"
                         data-id="' . $id . '"
+                        data-token="' . htmlspecialchars($_SESSION['csrf_token']) . '"
                         onclick="deletarFrota(this)"
                         data-bs-toggle="tooltip"
                         title="Remover">
                     <i class="fa fa-times"></i>
                 </button>';
         }
+		
+		$infoOmProprietaria = '';
+
+$batalhaoAtual = (int)($row['batalhao'] ?? 0);
+$batalhaoOrigem = (int)($row['batalhao_origem'] ?? 0);
+
+if ($batalhaoOrigem > 0 && $batalhaoAtual !== $batalhaoOrigem) {
+    $infoOmProprietaria = '
+        <b>Ativo emprestado oriundo do:</b>
+        <span class="badge badge-secondary">' . htmlspecialchars($row['sigla_om_origem'] ?? '-') . '</span>
+        |
+    ';
+}
 
         echo '
         <div class="frota-item">
@@ -628,8 +743,16 @@ if ($result->num_rows > 0) {
                 <div>
                     <h5 class="mb-1">' . htmlspecialchars($row['prefixo_sga']) . ' |
                         <span class="badge ' . $badgeClass . '">' . htmlspecialchars($row['disponibilidade']) . '</span>
+						 
+						 
                     </h5>
                     <h6><b>Status/Confiabilidade:</b> ' . htmlspecialchars($row['confiabilidade']) . '</h6>
+					 <h6>
+                <b>OM:</b>
+                <span class="badge badge-secondary">' . htmlspecialchars($row['sigla_om'] ?? '-') . '</span>
+                |
+                ' . $infoOmProprietaria . '
+            </h6>
                     <h6><b>Local:</b> ' . htmlspecialchars($row['destino']) . '</h6>
                     <p class="mb-0 text-muted">
                         <b>Placa:</b> ' . htmlspecialchars($row['placa']) . ' |
@@ -659,6 +782,7 @@ if ($result->num_rows > 0) {
                 
                 ' . $btnDeletar . '
 
+                ' . $btnEmprestimo . '
                 
             </div>
         </div>';
@@ -679,6 +803,7 @@ if ($result->num_rows > 0) {
   </div>
 </div>
 
+<?php if($pode_editar): ?>
 
 <!-- Modal de Edição de Viatura/Equipamento -->
 <div class="modal fade" id="modalEditarFrota" tabindex="-1" aria-labelledby="modalLabel" aria-hidden="true">
@@ -919,6 +1044,7 @@ if ($result->num_rows > 0) {
         </div>
 
         <div class="modal-footer">
+        <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
           <button type="submit" class="btn btn-success">Salvar Alterações</button>
         </div>
       </form>
@@ -926,7 +1052,7 @@ if ($result->num_rows > 0) {
   </div>
 </div>
 
-
+<?php endif; ?>
 
 
 <!-- Modal do perfil da viatura -->
@@ -1055,6 +1181,124 @@ if ($result->num_rows > 0) {
     </div>
   </div>
 </div>
+
+<?php if($pode_editar): ?>
+
+<div class="modal fade"
+     id="modalEmprestimoFrota"
+     tabindex="-1"
+     aria-hidden="true">
+
+    <div class="modal-dialog modal-dialog-centered">
+
+        <div class="modal-content">
+
+            <form id="form-emprestimo-frota">
+
+                <div class="modal-header">
+                    <h5 class="modal-title" id="titulo-modal-emprestimo">
+                        Empréstimo de ativo
+                    </h5>
+
+                    <button type="button"
+                            class="btn-close"
+                            data-bs-dismiss="modal"></button>
+                </div>
+
+                <div class="modal-body">
+
+                    <input type="hidden" name="id" id="emprestimo-id">
+                    <input type="hidden" name="acao" id="emprestimo-acao">
+                    <input type="hidden" name="batalhao_origem" id="emprestimo-batalhao-origem">
+					
+					
+					<!-- BATALHÃO ATUAL -->
+<div class="alert alert-secondary mb-3">
+    <div class="fw-bold mb-1">
+        Batalhão atual do ativo
+    </div>
+
+    <div id="emprestimo-batalhao-atual-texto">
+        Carregando...
+    </div>
+</div>
+
+<!-- BATALHÃO DESTINO -->
+<div class="mb-3">
+    <label class="form-label">
+        Batalhão destino
+    </label>
+
+    <select name="batalhao_destino"
+            id="emprestimo-batalhao-destino"
+            class="form-select"
+            required>
+
+        <option value="">
+            Selecione...
+        </option>
+
+        <?php
+        $sqlOms = "
+            SELECT id, nome, abreviatura
+            FROM organizacoes_militares
+            ORDER BY nome
+        ";
+
+        $resOms = $conexao->query($sqlOms);
+
+        while($om = $resOms->fetch_assoc()):
+        ?>
+
+            <option value="<?= $om['id'] ?>">
+                <?= htmlspecialchars($om['abreviatura'] ?: $om['nome']) ?>
+            </option>
+
+        <?php endwhile; ?>
+
+    </select>
+
+    <div id="texto-destino-devolucao"
+         class="form-text text-muted d-none">
+        Na devolução, o destino será automaticamente o batalhão de origem do ativo.
+    </div>
+</div>
+
+                    <div class="mb-3">
+                        <label class="form-label">
+                            Observações
+                        </label>
+
+                        <textarea name="observacoes"
+                                  class="form-control"
+                                  rows="4"></textarea>
+                    </div>
+
+                </div>
+
+                <div class="modal-footer">
+
+                    <input type="hidden"
+                           name="csrf_token"
+                           value="<?= $_SESSION['csrf_token'] ?>">
+
+                    <button type="submit"
+                            class="btn btn-primary"
+                            id="btn-submit-emprestimo">
+                        Confirmar
+                    </button>
+
+                </div>
+
+            </form>
+
+        </div>
+
+    </div>
+
+</div>
+
+<?php endif; ?>
 
 <script>
     window.funcaoInicializacao = 'inicializarListagemFrota';

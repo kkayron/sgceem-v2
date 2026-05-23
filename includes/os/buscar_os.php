@@ -63,6 +63,24 @@ if ($res && $res->num_rows > 0) {
     while ($m = $materiais->fetch_assoc()) {
         $retorno['materiais'][] = $m;
     }
+	
+	// Fotos da OS
+$retorno['fotos'] = [];
+
+$stmtFotos = $conexao->prepare("
+    SELECT id, nome_arquivo, caminho, legenda, data_upload
+    FROM os_fotos
+    WHERE id_osprincipal = ?
+    ORDER BY id DESC
+");
+$stmtFotos->bind_param("i", $id);
+$stmtFotos->execute();
+
+$resFotos = $stmtFotos->get_result();
+
+while ($foto = $resFotos->fetch_assoc()) {
+    $retorno['fotos'][] = $foto;
+}
 
     $retorno['sucesso'] = true;
 }

@@ -9,6 +9,7 @@ $pode_cadastrar = $permissoes['cadastrar'];
 $pode_editar    = $permissoes['editar'];
 $pode_deletar   = $permissoes['deletar'];
 $pode_importar  = $permissoes['importar'];
+$pode_exportar  = $permissoes['exportar'];
 
 
 if (!isset($_SESSION['usuario_id'])) {
@@ -341,7 +342,7 @@ if ($classe === 'text-danger')  $alertClass = 'alert-danger';
 
   <!-- ✅ AÇÕES (padrão bloco_financeiro) -->
   <div class="d-flex flex-wrap gap-2 justify-content-end mb-2">
-    <?php if ($nivel_usuario === 1): ?>
+    <?php if ($pode_cadastrar): ?>
       <button id="btnGerarSnapshot" class="btn btn-success btn-sm" type="button">
         <i class="fas fa-database me-1"></i> Registrar Histórico Atual
       </button>

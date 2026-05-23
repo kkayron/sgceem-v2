@@ -245,6 +245,9 @@ $queryString = http_build_query($paramsGET);
                       <th>Editar</th>
                       <th>Deletar</th>
                       <th>Cadastrar</th>
+                      <th>Importar</th>
+                      <th>Exportar</th>
+                      <th>Autorizar</th>
                     </tr>
                   </thead>
 
@@ -255,7 +258,10 @@ $queryString = http_build_query($paramsGET);
                              COALESCE(pm.pode_acessar,0) AS pode_acessar,
                              COALESCE(pm.pode_editar,0) AS pode_editar,
                              COALESCE(pm.pode_deletar,0) AS pode_deletar,
-                             COALESCE(pm.pode_cadastrar,0) AS pode_cadastrar
+                             COALESCE(pm.pode_cadastrar,0) AS pode_cadastrar,
+                             COALESCE(pm.pode_importar,0) AS pode_importar,
+                             COALESCE(pm.pode_exportar,0) AS pode_exportar,
+                             COALESCE(pm.pode_autorizar,0) AS pode_autorizar
                       FROM paginas p
                       LEFT JOIN permissoes pm 
                          ON pm.pagina_id = p.id AND pm.funcao_id = ?
@@ -272,7 +278,7 @@ $queryString = http_build_query($paramsGET);
                           <?= htmlspecialchars($perm['pagina_nome']) ?>
                         </td>
 
-                        <?php foreach (['pode_acessar', 'pode_editar', 'pode_deletar', 'pode_cadastrar'] as $campo): ?>
+                        <?php foreach (['pode_acessar', 'pode_editar', 'pode_deletar', 'pode_cadastrar', 'pode_importar', 'pode_exportar', 'pode_autorizar'] as $campo): ?>
                           <td>
                             <input type="checkbox"
   class="form-check-input mx-auto chk-permissao-pagina"

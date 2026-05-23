@@ -1,6 +1,15 @@
 <?php
-include_once '../../conexao/config.php';
 header('Content-Type: application/json; charset=utf-8');
+include_once('../../conexao/config.php');
+
+$pagina_id = 35;
+
+require_once('../api/seguranca_json_cadastrar.php');
+
+if (empty($_SERVER['HTTP_REFERER'])) {
+    echo json_encode(['status' => 'erro', 'mensagem' => 'Acesso direto não permitido']);
+    exit;
+}
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
   echo json_encode(['status' => 'erro', 'mensagem' => 'Método inválido.']);

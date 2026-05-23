@@ -160,6 +160,7 @@
 <script src="js/atualiza_odometro.js"></script>
 <script src="js/cadastro_vtr.js"></script>
 <script src="js/listagem_frota.js"></script>
+<script src="js/ativos_emprestados.js"></script>
 
 <!-- Script SEC CTRL -->
 <script src="js/ordem_servico.js?v=<?= time(); ?>"></script>
@@ -175,6 +176,11 @@
 
 <!-- Script STA -->
 <script src="js/sta/fichas.js?v=<?= time(); ?>" defer></script>
+<script src="js/sta/fichas_solicitacao.js?v=<?= time(); ?>" defer></script>
+
+<!-- Script Plano de Mnt -->
+<script src="js/plano_mnt/listagem.js?v=<?= time(); ?>" defer></script>
+<script src="js/plano_mnt/controle.js?v=<?= time(); ?>" defer></script>
 
 <!-- Script ALMOX -->
 <script src="js/almox/pedidos.js?v=<?= time(); ?>"></script>

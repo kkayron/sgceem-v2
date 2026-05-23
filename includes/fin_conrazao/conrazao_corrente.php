@@ -1,6 +1,33 @@
 <?php
 header('Content-Type: text/html; charset=utf-8');
 session_start();
+
+require_once '../api/seguranca.php';
+
+$permissoes = verificarPermissao([26]);
+
+$pode_cadastrar = $permissoes['cadastrar'];
+$pode_editar    = $permissoes['editar'];
+$pode_deletar   = $permissoes['deletar'];
+$pode_importar  = $permissoes['importar'];
+$pode_exportar  = $permissoes['exportar'];
+
+if (!isset($_SESSION['usuario_id'])) {
+  http_response_code(401);
+  echo "<div class='alert alert-danger'>Sessão expirada. Faça login novamente.</div>";
+  exit;
+}
+
+// BLOQUEAR ACESSO DIRETO VIA URL
+if (
+    !isset($_SERVER['HTTP_X_REQUESTED_WITH']) ||
+    strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) !== 'xmlhttprequest'
+) {
+    http_response_code(403);
+    echo "<div class='alert alert-danger'>Acesso direto não permitido.</div>";
+    exit;
+}
+
 include_once('../../conexao/config.php');
 
 // Obtem o filtro da URL e decodifica
@@ -44,6 +71,7 @@ if ($filtro_funcao !== 'todos') {
     <input type="file" name="arquivo" accept=".txt" class="form-control" required>
   </div>
   <div class="text-end">
+	  <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
     <button type="submit" class="btn btn-primary">Enviar Dados</button>
   </div>
 </form>

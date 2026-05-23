@@ -229,8 +229,143 @@ window.verEmpenho = function(id) {
 
     });
 };
+	
+	// Importar Empenhos
+const formImportarEmpenho = document.getElementById('formImportarEmpenho');
 
+if (formImportarEmpenho) {
+  formImportarEmpenho.addEventListener('submit', function (e) {
+    e.preventDefault();
 
+    const formData = new FormData(formImportarEmpenho);
+
+    fetch('includes/fin_empenhos/importar_empenhos.php', {
+      method: 'POST',
+      body: formData
+    })
+      .then(async res => {
+
+        // 🔥 DEBUG – captura a resposta crua ANTES do JSON
+        const raw = await res.text();
+        console.log("RAW RESPONSE IMPORTAÇÃO:", raw);
+
+        try {
+          return JSON.parse(raw);
+        } catch (e) {
+          swal({
+            title: "Erro de Resposta!",
+            text: "A resposta do servidor não é JSON válido.\n\nVeja o console do navegador (F12).",
+            icon: "error",
+            button: { text: "Fechar", className: "btn btn-danger" }
+          });
+          throw e;
+        }
+
+      })
+      .then(data => {
+
+        if (data.status === 'ok') {
+
+          let mensagem = data.mensagem;
+
+          if (data.falhas && data.falhas.length > 0) {
+            mensagem += "\n\nFalhas encontradas:\n" +
+              data.falhas.map(f => `Linha ${f.linha}: ${f.erro}`).join("\n");
+          }
+
+          swal({
+            title: "Importação concluída!",
+            text: mensagem,
+            icon: "success",
+            button: { text: "OK", className: "btn btn-success" }
+          }).then(() => {
+            carregarPagina('includes/fin_empenhos/listagem.php');
+            fecharModalAberto();
+          });
+
+        } else {
+
+          let erroMsg = data.mensagem;
+
+          if (data.falhas && data.falhas.length > 0) {
+            erroMsg += "\n\nFalhas:\n" +
+              data.falhas.map(f => `Linha ${f.linha}: ${f.erro}`).join("\n");
+          }
+
+          swal({
+            title: "Erro na importação!",
+            text: erroMsg,
+            icon: "error",
+            button: { text: "Fechar", className: "btn btn-danger" }
+          });
+
+        }
+      })
+      .catch(err => {
+        swal({
+          title: "Erro!",
+          text: "Erro de rede: " + err.message,
+          icon: "error",
+          button: { text: "Fechar", className: "btn btn-danger" }
+        });
+      });
+  });
+}
+
+ // ===============================
+// Exportar Excel - Empenhos (ALINHADO COM A LISTAGEM)
+// ===============================
+(function () {
+
+    const btn = document.getElementById('btnExportarExcelEmpenhos');
+    if (!btn) return;
+
+    function getValByIdOrName(id, name) {
+
+        if (id) {
+            const el = document.getElementById(id);
+            if (el) return el.value || '';
+        }
+
+        if (name) {
+            const el = document.querySelector('[name="' + name + '"]');
+            if (el) return el.value || '';
+        }
+
+        return '';
+    }
+
+    btn.addEventListener('click', function (e) {
+        e.preventDefault();
+
+        // 🔹 NOMES EXATOS IGUAIS AO PHP DA LISTAGEM
+        const filtros = {
+            batalhao:      getValByIdOrName('filtroBatalhao', 'batalhao'),
+            ano:           getValByIdOrName('filtroAno', 'ano'),
+            nmr_empenho:   getValByIdOrName('filtroNumeroEmpenho', 'nmr_empenho'),
+            fornecedor:    getValByIdOrName('filtroFornecedor', 'fornecedor'),
+            requisitante:  getValByIdOrName('filtroRequisitante', 'requisitante'),
+            marca:         getValByIdOrName('filtroMarca', 'marca'),
+            destinatario:  getValByIdOrName('filtroDestinatario', 'destinatario'),
+            obra:          getValByIdOrName('filtroObra', 'obra'),
+            categoria:     getValByIdOrName('filtroCategoria', 'categoria'),
+            local:         getValByIdOrName('filtroLocal', 'local'),
+            saldo_real:    getValByIdOrName('filtroSaldoReal', 'saldo_real')
+        };
+
+        const params = new URLSearchParams();
+
+        Object.entries(filtros).forEach(([key, value]) => {
+            if (value !== null && value !== '') {
+                params.append(key, value);
+            }
+        });
+
+        const url = 'excel/exportar_empenhos.php?' + params.toString();
+        window.open(url, '_blank');
+    });
+
+})();
 
     
 };

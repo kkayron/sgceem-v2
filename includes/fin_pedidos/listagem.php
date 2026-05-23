@@ -1,9 +1,33 @@
 <?php
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
 header('Content-Type: text/html; charset=utf-8');
 if (session_status() === PHP_SESSION_NONE) session_start();
+require_once '../api/seguranca.php';
+
+$permissoes = verificarPermissao([17, 25]);
+
+$pode_cadastrar = $permissoes['cadastrar'];
+$pode_editar    = $permissoes['editar'];
+$pode_deletar   = $permissoes['deletar'];
+$pode_importar  = $permissoes['importar'];
+$pode_exportar  = $permissoes['exportar'];
+$pode_autorizar  = $permissoes['autorizar'];
+
+if (!isset($_SESSION['usuario_id'])) {
+  http_response_code(401);
+  echo "<div class='alert alert-danger'>Sessão expirada. Faça login novamente.</div>";
+  exit;
+}
+
+// BLOQUEAR ACESSO DIRETO VIA URL
+if (
+    !isset($_SERVER['HTTP_X_REQUESTED_WITH']) ||
+    strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) !== 'xmlhttprequest'
+) {
+    http_response_code(403);
+    echo "<div class='alert alert-danger'>Acesso direto não permitido.</div>";
+    exit;
+}
+
 include_once('../../conexao/config.php');
 
 // ============================
@@ -431,9 +455,11 @@ $queryString = http_build_query($paramsGET);
 Caso precise consultar períodos anteriores, utilize o filtro de datas.</h6>
       </div>
       <div>
+		  <?php if($pode_cadastrar): ?>
         <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalCadastrarPedido">
           <i class="fa fa-plus me-1"></i> Cadastrar Pedido
         </button>
+		  <?php endif; ?>
       </div>
     </div>
 
@@ -633,8 +659,6 @@ $placa_filtro   = $_GET['placa'] ?? '';
             };
 
             $autorizado = ($pedido['autorizacao'] ?? '') === 'sim';
-            $funcoesPermitidas = [1, 8, 9, 10];
-            $podeAutorizar = in_array($_SESSION['funcao_id'] ?? 0, $funcoesPermitidas);
           ?>
 
           <div class="list-group-item list-group-item-action flex-column align-items-start mb-3 p-3 border-0 shadow-sm rounded-3">
@@ -687,22 +711,23 @@ $placa_filtro   = $_GET['placa'] ?? '';
 
             <!-- AÇÕES -->
             <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
+<?php if ($pode_autorizar): ?>
 
-              <!-- BOTÃO AUTORIZAR -->
-              <button
-                class="btn btn-sm <?= $autorizado ? 'btn-success' : 'btn-danger' ?>
-                       <?= $podeAutorizar ? 'btn-toggle-autorizacao-fin' : '' ?>"
-                data-id="<?= $pedido['id'] ?>"
-                data-autorizacao="<?= $pedido['autorizacao'] ?>"
-                <?= !$podeAutorizar ? 'disabled' : '' ?>
-              >
-                <?php if ($autorizado): ?>
-                  <i class="fas fa-check-circle me-1"></i> Autorizado
-                <?php else: ?>
-                  <i class="fas fa-ban me-1"></i> Não autorizado
-                <?php endif; ?>
-              </button>
+<button
+    type="button"
+    class="btn btn-sm btn-autorizar <?= $autorizado ? 'btn-success' : 'btn-danger' ?>"
+    data-id="<?= (int)$pedido['id'] ?>"
+    data-token="<?= htmlspecialchars($_SESSION['csrf_token']) ?>"
+    data-status="<?= $autorizado ? 'sim' : 'nao' ?>"
+>
+    <?php if ($autorizado): ?>
+        <i class="fas fa-check-circle me-1"></i> Autorizado
+    <?php else: ?>
+        <i class="fas fa-ban me-1"></i> Não autorizado
+    <?php endif; ?>
+</button>
 
+<?php endif; ?>
               <!-- IMPRIMIR -->
               <div class="dropdown">
                 <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
@@ -728,6 +753,7 @@ $placa_filtro   = $_GET['placa'] ?? '';
   <i class="fas fa-eye me-1"></i> Ver itens
 </button>
 
+ <?php if($pode_editar): ?>
               <!-- EDITAR -->
               <button class="btn btn-sm btn-outline-warning"
                       onclick="editarPedido(<?= $pedido['id'] ?>)"
@@ -735,14 +761,16 @@ $placa_filtro   = $_GET['placa'] ?? '';
                       data-bs-target="#modalEditarPedido">
                 <i class="fas fa-edit me-1"></i> Editar
               </button>
-
+<?php endif; ?>
+ <?php if($pode_deletar): ?>
               <!-- REMOVER -->
               <button class="btn btn-sm btn-outline-danger"
                       data-id="<?= $pedido['id'] ?>"
+					  data-token="<?= htmlspecialchars($_SESSION['csrf_token']) ?>"
                       onclick="deletarPedido(this)">
                 <i class="fa fa-times"></i> Remover
               </button>
-
+<?php endif; ?>
             </div>
 
  <div class="collapse mt-3 itens-pedido-container"
@@ -775,7 +803,7 @@ $placa_filtro   = $_GET['placa'] ?? '';
 </div>
 
 </div>
-
+ <?php if($pode_editar): ?>
 <!-- Modal de Edição dos Pedidos -->
 <div class="modal fade" id="modalEditarPedido" tabindex="-1" aria-labelledby="modalEditarPedidoLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-xl">
@@ -1015,14 +1043,16 @@ $placa_filtro   = $_GET['placa'] ?? '';
             <div class="alert alert-secondary text-end fw-bold mt-3" id="editar-somaTotalItens">
   Valor total dos itens: R$ 0,00 / Valor total do desconto: R$ 0,00 / Valor final com desconto: R$ 0,00
 </div>
-
+	        <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
           <button type="submit" class="btn btn-warning w-100 mt-4">Salvar Alterações</button>
         </form>
       </div>
     </div>
   </div>
 </div>
+<?php endif; ?>
 
+ <?php if($pode_cadastrar): ?>
 
 <!-- Modal de Cadastro dos pedidos -->
 
@@ -1271,14 +1301,14 @@ $placa_filtro   = $_GET['placa'] ?? '';
             <div class="alert alert-secondary text-end fw-bold mt-3" id="somaTotalItens">
   Valor total dos itens: R$ 0,00 / Valor total do desconto: R$ 0,00 / Valor final com desconto: R$ 0,00
 </div>
-
+	        <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
           <button type="submit" class="btn btn-success w-100 mt-4">Cadastrar Pedido</button>
         </form>
       </div>
     </div>
   </div>
 </div>
-
+<?php endif; ?>
 
 
 <!-- Script da página de Requisição de Vtr/Eqp -->
@@ -1289,7 +1319,6 @@ document.querySelectorAll('.btn-toggle-autorizacao-fin').forEach(botao => {
     toggleAutorizacaoPedidoFornecedor(this);
   });
 });
-    
 </script>
 
 

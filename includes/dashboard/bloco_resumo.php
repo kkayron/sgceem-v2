@@ -9,6 +9,7 @@ $pode_cadastrar = $permissoes['cadastrar'];
 $pode_editar    = $permissoes['editar'];
 $pode_deletar   = $permissoes['deletar'];
 $pode_importar  = $permissoes['importar'];
+$pode_exportar  = $permissoes['exportar'];
 
 
 if (!isset($_SESSION['usuario_id'])) {
@@ -343,8 +344,10 @@ $loop_index2 = 0;
 
 <div data-bloco="resumo">
 
-  <!-- ✅ BARRA AÇÕES -->
+  <!-- BARRA AÇÕES -->
   <div class="d-flex flex-wrap gap-2 justify-content-end mb-2">
+	  
+	  <?php if($pode_exportar): ?>
     <button type="button" class="btn btn-danger btn-sm"
       onclick="
         (function(){
@@ -356,6 +359,7 @@ $loop_index2 = 0;
       ">
       <i class="fas fa-file-pdf me-1"></i> Exportar PDF
     </button>
+	  <?php endif; ?>
   </div>
 
   <!-- FILTROS (COLLAPSE) -->

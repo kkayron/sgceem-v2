@@ -140,9 +140,10 @@ function montarHtmlFicha($ficha, $base64, $cmt_ceem) {
 
     $data_abertura = !empty($ficha['data_abertura']) ? date('d/m/Y', strtotime($ficha['data_abertura'])) : '';
     $data_prevista = !empty($ficha['data_prevista']) ? date('d/m/Y', strtotime($ficha['data_prevista'])) : '';
+	$naoAutorizada = strtolower(trim($ficha['status'] ?? '')) === 'não autorizada';
 
-    $html = '
-    <div class="ficha">
+$html = '
+<div class="ficha ' . ($naoAutorizada ? 'ficha-nao-autorizada' : '') . '">
       <div class="img-container">
         ' . ($base64 ? '<img src="' . $base64 . '" width="50" height="50">' : '[Brasão]') . '
       </div>
@@ -366,6 +367,33 @@ $css = '
   .section-title { font-weight: bold; margin-top: 10px; text-transform: uppercase; background: #f3f3f3; padding: 4px; border: 1px solid #000; }
   .img-container { text-align: center; margin-bottom: 5px; }
   .quebra { page-break-after: always; }
+  .ficha {
+    position: relative;
+}
+
+.ficha-nao-autorizada::before {
+    content: "NÃO AUTORIZADA";
+    position: fixed;
+    top: 42%;
+    left: 8%;
+    width: 84%;
+    text-align: center;
+
+    font-size: 68px;
+    font-weight: bold;
+    color: rgba(220, 53, 69, 0.14);
+
+    transform: rotate(-32deg);
+
+    z-index: 0;
+    letter-spacing: 6px;
+    white-space: nowrap;
+}
+
+.ficha-nao-autorizada * {
+    position: relative;
+    z-index: 1;
+}
 </style>
 ';
 

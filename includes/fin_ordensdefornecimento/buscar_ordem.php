@@ -1,5 +1,8 @@
 <?php
 header('Content-Type: application/json; charset=utf-8');
+$pagina_id = 46;
+
+require_once('../api/seguranca_json_editar.php');
 require_once '../../conexao/config.php';
 
 $id = intval($_GET['id'] ?? 0);

@@ -398,6 +398,7 @@ window.adicionarItemPregaoEditar = function (item = {}) {
 
 window.deletarPregao = function(botao) {
   const id = botao.getAttribute('data-id');
+  const token = botao.dataset.token; // pega o token
 
   Swal.fire({
     title: 'Deletar Pregão?',
@@ -410,6 +411,7 @@ window.deletarPregao = function(botao) {
     if (result.isConfirmed) {
       const formData = new FormData();
       formData.append('id', id);
+      formData.append('csrf_token', token); // 🔒 envia o token
 
       fetch('includes/fin_pregoes/deletar_pregoes.php', {
         method: 'POST',

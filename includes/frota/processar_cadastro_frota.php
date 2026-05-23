@@ -1,14 +1,26 @@
 <?php
-
 // ========================================
 // CONFIGURAÇÕES
 // ========================================
-require_once '../../conexao/config.php';
-require_once '../api/response.php';
 $pagina_id = 2;
-
 require_once('../api/seguranca_json_cadastrar.php');
 
+//CSRF
+if (
+    empty($_POST['csrf_token']) ||
+    empty($_SESSION['csrf_token']) ||
+    !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])
+) {
+    http_response_code(403);
+    echo json_encode([
+        'success' => false,
+        'message' => 'Token inválido'
+    ]);
+    exit;
+}
+
+
+require_once '../../conexao/config.php';
 header('Content-Type: application/json; charset=utf-8');
 
 
@@ -147,6 +159,9 @@ $ok = $stmt->execute();
 // RESPOSTA E LOG
 // ========================================
 if ($ok) {
+	
+			// 🔒 NOVO TOKEN
+$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 
     $usuario_id = $_SESSION['usuario_id'] ?? 0;
     $acao = "Cadastro de frota";

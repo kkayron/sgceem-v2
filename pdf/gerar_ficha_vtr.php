@@ -82,9 +82,27 @@ $html = '
     .table2 td { border: 1px solid #000; padding: 1px 1px; text-align: center; }
     .section-title { font-weight: bold; margin-top: 10px; text-transform: uppercase; background: #f3f3f3; padding: 4px; border: 1px solid #000; }
     .img-container { text-align: center; margin-bottom: 5px; }
+	.watermark {
+    position: fixed;
+    top: 45%;
+    left: 5%;
+    width: 90%;
+    text-align: center;
+    font-size: 60px;
+    color: #FF0000;
+    opacity: 0.09;
+    transform: rotate(-30deg);
+    z-index: -1;
+    font-weight: bold;
+    letter-spacing: 5px;
+}
 </style>
 </head>
 <body>
+'.($ficha['autorizado'] !== 'sim'
+    ? '<div class="watermark">FICHA NÃO AUTORIZADA</div>'
+    : ''
+).'
 <div class="img-container">
     ' . ($base64 ? '<img src="' . $base64 . '" width="50" height="50">' : '[Brasão]') . '
 </div>

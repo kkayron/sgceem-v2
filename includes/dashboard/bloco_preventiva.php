@@ -9,12 +9,14 @@ $pode_cadastrar = $permissoes['cadastrar'];
 $pode_editar    = $permissoes['editar'];
 $pode_deletar   = $permissoes['deletar'];
 $pode_importar  = $permissoes['importar'];
+$pode_exportar  = $permissoes['exportar'];
 
 if (!isset($_SESSION['usuario_id'])) {
   http_response_code(401);
   echo "<div class='alert alert-danger'>Sessão expirada. Faça login novamente.</div>";
   exit;
 }
+
 
 include_once('../../conexao/config.php');
 
@@ -326,8 +328,9 @@ if (!empty($frota)) {
 
 <div data-bloco="preventiva">
 
-  <!-- ✅ BARRA AÇÕES -->
+  <!-- BARRA AÇÕES -->
   <div class="d-flex flex-wrap gap-2 justify-content-end mb-2">
+	  <?php if($pode_exportar): ?>
     <button type="button" class="btn btn-danger btn-sm"
       onclick="(function(){
         var f=document.getElementById('filtroPreventivaForm');
@@ -337,7 +340,8 @@ if (!empty($frota)) {
       })();">
       <i class="fas fa-file-pdf me-1"></i> Exportar PDF
     </button>
-
+<?php endif; ?>
+	  <?php if($pode_exportar): ?>
     <button type="button" class="btn btn-success btn-sm"
       onclick="(function(){
         var f=document.getElementById('filtroPreventivaForm');
@@ -347,6 +351,7 @@ if (!empty($frota)) {
       })();">
       <i class="fas fa-file-excel me-1"></i> Exportar Excel
     </button>
+<?php endif; ?>
   </div>
 
   <!-- FILTROS DO BLOCO -->

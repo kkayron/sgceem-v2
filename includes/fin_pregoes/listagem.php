@@ -1,6 +1,33 @@
 <?php
 header('Content-Type: text/html; charset=utf-8');
 session_start();
+require_once '../api/seguranca.php';
+
+$permissoes = verificarPermissao([24]);
+
+$pode_cadastrar = $permissoes['cadastrar'];
+$pode_editar    = $permissoes['editar'];
+$pode_deletar   = $permissoes['deletar'];
+$pode_importar  = $permissoes['importar'];
+$pode_exportar  = $permissoes['exportar'];
+$pode_autorizar  = $permissoes['autorizar'];
+
+if (!isset($_SESSION['usuario_id'])) {
+  http_response_code(401);
+  echo "<div class='alert alert-danger'>Sessão expirada. Faça login novamente.</div>";
+  exit;
+}
+
+// BLOQUEAR ACESSO DIRETO VIA URL
+if (
+    !isset($_SERVER['HTTP_X_REQUESTED_WITH']) ||
+    strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) !== 'xmlhttprequest'
+) {
+    http_response_code(403);
+    echo "<div class='alert alert-danger'>Acesso direto não permitido.</div>";
+    exit;
+}
+
 include_once('../../conexao/config.php');
 
 // =============================
@@ -276,15 +303,19 @@ $queryString = http_build_query($paramsGET);
         <h6 class="text-muted">Listagem dos pregões realizados ou em andamento.</h6>
       </div>
       <div>
+		  <?php if($pode_cadastrar): ?>
         <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalCadastroPREGAO">
           <i class="fa fa-plus me-1"></i> Cadastrar Pregão
         </button>
-          
+          <?php endif; ?>
           <!-- Botão Excel -->
 <!-- Botão Excel -->
+		  
+		  <?php if($pode_exportar): ?>
 <button id="btnExportarExcelPregao" class="btn btn-success">
   <i class="fas fa-file-excel"></i> Exportar Excel
 </button>
+		  <?php endif; ?>
 
       </div>
     </div>
@@ -492,17 +523,22 @@ $batalhao_filtro = $_GET['batalhao'] ?? '';
               <button class="btn btn-sm btn-outline-primary" onclick="verPregao(<?= $pregao['id'] ?>)" data-bs-toggle="modal" data-bs-target="#modalVerPregao">
                 <i class="fas fa-eye me-1"></i> Ver
               </button>
+				<?php if($pode_editar): ?>
               <button class="btn btn-sm btn-outline-warning" onclick="editarPregao(<?= $pregao['id'] ?>)" data-bs-toggle="modal" data-bs-target="#modalEditarPregao">
                 <i class="fas fa-edit me-1"></i> Editar
               </button>
+				<?php endif; ?>
+				<?php if($pode_deletar): ?>
               <button type="button"
                 class="btn btn-sm btn-outline-danger d-flex align-items-center btn-deletar-pregao"
                 data-id="<?= $pregao['id'] ?>"
                 onclick="deletarPregao(this)"
                 data-bs-toggle="tooltip"
+				data-token="<?= htmlspecialchars($_SESSION['csrf_token']) ?>"
                 title="Remover">
                 <i class="fa fa-times"></i>
               </button>
+				<?php endif; ?>
             </div>
           </div>
         <?php endwhile; ?>
@@ -526,10 +562,7 @@ $batalhao_filtro = $_GET['batalhao'] ?? '';
 </div>
 
 </div>
-
-
-
-
+<?php if($pode_cadastrar): ?>
 <!-- Modal de Cadastro -->
     <div class="modal fade" id="modalCadastroPREGAO" tabindex="-1" aria-labelledby="modalLabel" aria-hidden="true">
       <div class="modal-dialog modal-dialog-centered modal-lg">
@@ -617,20 +650,18 @@ $batalhao_filtro = $_GET['batalhao'] ?? '';
 <div id="itensPregaoContainer" class="mb-2"></div>
 
 <div class="row"><button type="button" class="btn btn-info btn-sm mb-3" onclick="adicionarItemPregao()">Adicionar item ao pregão</button></div>
-
+<input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
 <button type="submit" class="btn btn-success">Cadastrar pregão</button>
 <input type="hidden" id="edit-id" name="id">
 </form>
-              
-              
-
           </div>
         </div>
       </div>
     </div>
+<?php endif; ?>
 
 
-
+		  <?php if($pode_editar): ?>
 
 <!-- Modal de Edição -->
 <div class="modal fade" id="modalEditarPregao" tabindex="-1" aria-labelledby="modalLabelEditar" aria-hidden="true">
@@ -714,6 +745,7 @@ $batalhao_filtro = $_GET['batalhao'] ?? '';
           <div id="itensPregaoContainerEditar" class="mb-2"></div>
             <div class="row"><button type="button" class="btn btn-info btn-sm mb-3" onclick="adicionarItemPregaoEditar()">Adicionar item ao pregão</button></div>
 
+<input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
           <button type="submit" class="btn btn-success">Salvar alterações</button>
           <input type="hidden" id="editar-id" name="id">
         </form>
@@ -807,8 +839,7 @@ $batalhao_filtro = $_GET['batalhao'] ?? '';
   </div>
 </div>
 
-
-
+<?php endif; ?>
 
 
 

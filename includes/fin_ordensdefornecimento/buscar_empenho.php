@@ -1,6 +1,11 @@
 <?php
 // includes/fin_ordemforn/buscar_empenho.php
 header('Content-Type: application/json; charset=utf-8');
+$pagina_id = 46;
+
+require_once('../api/seguranca_json_cadastrar.php');
+
+
 require_once __DIR__ . '/../../conexao/config.php';
 
 $id_empenho = intval($_GET['id'] ?? 0);

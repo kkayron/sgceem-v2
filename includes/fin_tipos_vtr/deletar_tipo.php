@@ -1,5 +1,23 @@
 <?php
 header('Content-Type: application/json; charset=utf-8');
+
+$pagina_id = 49;
+require_once('../api/seguranca_json_deletar.php');
+
+//CSRF
+if (
+    empty($_POST['csrf_token']) ||
+    empty($_SESSION['csrf_token']) ||
+    !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])
+) {
+    http_response_code(403);
+    echo json_encode([
+        'success' => false,
+        'message' => 'Token inválido'
+    ]);
+    exit;
+}
+
 include_once('../../conexao/config.php');
 
 try {
@@ -62,6 +80,8 @@ try {
     $stmt->bind_param("i", $id);
 
     if ($stmt->execute()) {
+		// 🔒 NOVO TOKEN
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
         echo json_encode([
             'success' => true,
             'message' => 'Categoria excluída com sucesso.'

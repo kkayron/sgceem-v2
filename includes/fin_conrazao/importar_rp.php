@@ -1,66 +1,160 @@
 <?php
+declare(strict_types=1);
+
 include '../../conexao/config.php';
+
+$pagina_id = 27;
+
+require_once('../api/seguranca_json_importar.php');
 
 header('Content-Type: application/json; charset=utf-8');
 
-if (!isset($_FILES['arquivo']) || $_FILES['arquivo']['error'] !== UPLOAD_ERR_OK) {
-    echo json_encode(['status' => 'erro', 'mensagem' => 'Arquivo não enviado corretamente.']);
+// 🔒 VALIDAR CSRF TOKEN
+if (
+    empty($_POST['csrf_token']) ||
+    empty($_SESSION['csrf_token']) ||
+    !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])
+) {
+    http_response_code(403);
+    echo json_encode([
+        'status' => 'erro',
+        'mensagem' => 'Token inválido.'
+    ]);
     exit;
 }
 
-$arquivo = $_FILES['arquivo']['tmp_name'];
-$linhas = file($arquivo);
-$enviados = [];
-$fails = [];
+// 🔒 Configurações
+$MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB
+$ALLOWED_EXT = ['txt'];
 
-foreach ($linhas as $i => $linha) {
-    $linha = trim($linha);
+$response = ['enviados' => [], 'falhas' => []];
 
-    // Padrão para capturar empenhos: N 2025NE000001, N 2022NE000099 etc
-    if (preg_match('/^N\s+(20[0-9]{2}|21[0-9]{2}|22[0-9]{2}|23[0-9]{2}|24[0-9]{2}|25[0-9]{2})NE\d{6}/', $linha, $match)) {
-        $partes = preg_split('/\s+/', $linha);
-        $nmr_empenho = $partes[1] ?? null;
+try {
 
-        // Linha seguinte deve conter o saldo (último campo)
-        $linhaSaldo = $linhas[$i + 1] ?? '';
-       $linhaSaldo = trim($linhaSaldo);
+    // 🔒 Validação de upload
+    if (!isset($_FILES['arquivo']) || $_FILES['arquivo']['error'] !== UPLOAD_ERR_OK) {
+        throw new Exception('Arquivo não enviado corretamente.');
+    }
 
-// Captura o valor com formato 9.999,99 mesmo que venha antes de um "C" ou qualquer letra
-preg_match('/(\d{1,3}(?:\.\d{3})*,\d{2})/', $linhaSaldo, $matchSaldo);
-$valorBruto = $matchSaldo[1] ?? null;
+    $file = $_FILES['arquivo'];
 
-$valorLimpo = str_replace(['.', ','], ['', '.'], $valorBruto);
+    // 🔒 Tamanho
+    if ($file['size'] > $MAX_FILE_SIZE) {
+        throw new Exception('Arquivo muito grande. Máx 2MB.');
+    }
 
+    // 🔒 Extensão
+    $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+    if (!in_array($ext, $ALLOWED_EXT)) {
+        throw new Exception('Apenas arquivos .txt são permitidos.');
+    }
 
-        if ($nmr_empenho && is_numeric($valorLimpo)) {
-            // Apagar anterior se existir
-            $conexao->query("DELETE FROM fin_siafi_restopagar WHERE nmr_empenho = '$nmr_empenho'");
+    // 🔒 MIME flexível (não quebrar TXT do SIAFI)
+    $finfo = new finfo(FILEINFO_MIME_TYPE);
+    $mime = $finfo->file($file['tmp_name']);
 
-            $stmt = $conexao->prepare("INSERT INTO fin_siafi_restopagar (nmr_empenho, saldo_empenho) VALUES (?, ?)");
-            $stmt->bind_param("sd", $nmr_empenho, $valorLimpo);
-            if ($stmt->execute()) {
-                $enviados[] = [
-                    'nmr_empenho' => $nmr_empenho,
-                    'saldo_empenho' => number_format($valorLimpo, 2, ',', '.')
-                ];
+    if (strpos($mime, 'text') === false && $mime !== 'application/octet-stream') {
+        throw new Exception('Tipo de arquivo inválido.');
+    }
+
+    // 🔒 Abrir arquivo (stream)
+    $handle = fopen($file['tmp_name'], 'r');
+    if (!$handle) {
+        throw new Exception('Erro ao abrir arquivo.');
+    }
+
+    $linhas = [];
+
+    while (($linha = fgets($handle)) !== false) {
+        $linha = trim($linha);
+
+        // 🔒 Ignorar lixo
+        if ($linha === '' || strlen($linha) > 500) continue;
+
+        $linhas[] = $linha;
+    }
+
+    fclose($handle);
+
+    // 🔒 Transação
+    $conexao->begin_transaction();
+
+    foreach ($linhas as $i => $linha) {
+
+        // ✅ Padrão real SIAFI (flexível)
+        if (preg_match('/^N\s+(20\d{2}NE\d{6})/i', $linha, $match)) {
+
+            $nmr_empenho = $match[1];
+
+            // Próxima linha contém descrição + valor
+            $linhaSaldo = $linhas[$i + 1] ?? '';
+
+            if (preg_match('/(\d{1,3}(?:\.\d{3})*,\d{2})\s*[CD]?$/', $linhaSaldo, $matchSaldo)) {
+
+                $valorBruto = $matchSaldo[1];
+
+                // 🔒 Sanitização
+                $valorBruto = preg_replace('/[^\d.,]/', '', $valorBruto);
+                $valorLimpo = str_replace(['.', ','], ['', '.'], $valorBruto);
+                $saldo = floatval($valorLimpo);
+
+                if ($saldo >= 0) {
+
+                    // 🔒 DELETE seguro (corrigido SQL Injection)
+                    $stmtDel = $conexao->prepare("DELETE FROM fin_siafi_restopagar WHERE nmr_empenho = ?");
+                    $stmtDel->bind_param("s", $nmr_empenho);
+                    $stmtDel->execute();
+                    $stmtDel->close();
+
+                    // 🔒 INSERT seguro
+                    $stmt = $conexao->prepare("
+                        INSERT INTO fin_siafi_restopagar (nmr_empenho, saldo_empenho)
+                        VALUES (?, ?)
+                    ");
+
+                    $stmt->bind_param("sd", $nmr_empenho, $saldo);
+
+                    if ($stmt->execute()) {
+                        $response['enviados'][] = [
+                            'nmr_empenho' => $nmr_empenho,
+                            'saldo_empenho' => number_format($saldo, 2, ',', '.')
+                        ];
+                    } else {
+                        $response['falhas'][] = [
+                            'nmr_empenho' => $nmr_empenho,
+                            'erro' => 'Erro ao inserir'
+                        ];
+                    }
+
+                    $stmt->close();
+
+                } else {
+                    $response['falhas'][] = [
+                        'nmr_empenho' => $nmr_empenho,
+                        'erro' => 'Saldo inválido'
+                    ];
+                }
+
             } else {
-                $fails[] = [
+                $response['falhas'][] = [
                     'nmr_empenho' => $nmr_empenho,
-                    'erro' => 'Erro ao salvar no banco'
+                    'erro' => 'Saldo não encontrado'
                 ];
             }
-            $stmt->close();
-        } else {
-            $fails[] = [
-                'nmr_empenho' => $nmr_empenho ?? '(não encontrado)',
-                'erro' => 'Saldo inválido'
-            ];
         }
     }
-}
 
-echo json_encode([
-    'status' => 'sucesso',
-    'enviados' => $enviados,
-    'falhas' => $fails
-]);
+    // 🔒 Commit
+    $conexao->commit();
+
+    echo json_encode(['status' => 'sucesso'] + $response);
+
+} catch (Exception $e) {
+
+    $conexao->rollback();
+
+    echo json_encode([
+        'status' => 'erro',
+        'mensagem' => $e->getMessage()
+    ]);
+}

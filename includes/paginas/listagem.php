@@ -304,7 +304,8 @@ function renderPaginacaoPaginas($pagina, $total, $limite)
                                  COALESCE(pm.pode_deletar,0) AS pode_deletar,
                                  COALESCE(pm.pode_cadastrar,0) AS pode_cadastrar,
                                  COALESCE(pm.pode_importar,0) AS pode_importar,
-                                 COALESCE(pm.pode_exportar,0) AS pode_exportar
+                                 COALESCE(pm.pode_exportar,0) AS pode_exportar,
+                                 COALESCE(pm.pode_autorizar,0) AS pode_autorizar
                           FROM funcoes f
                           LEFT JOIN permissoes pm ON pm.funcao_id = f.id AND pm.pagina_id = ?
                           ORDER BY f.nome ASC
@@ -324,13 +325,14 @@ function renderPaginacaoPaginas($pagina, $total, $limite)
                               <th>Cadastrar</th>
                               <th>Importar</th>
                               <th>Exportar</th>
+                              <th>Autorizar</th>
                             </tr>
                           </thead>
                           <tbody>
                             <?php while ($perm = $permissoesRes->fetch_assoc()): ?>
                               <tr>
                                 <td class="fw-semibold text-start"><?= htmlspecialchars($perm['funcao_nome']) ?></td>
-                                <?php foreach (['pode_acessar','pode_editar','pode_deletar','pode_cadastrar','pode_importar','pode_exportar'] as $campo): ?>
+                                <?php foreach (['pode_acessar','pode_editar','pode_deletar','pode_cadastrar','pode_importar','pode_exportar', 'pode_autorizar'] as $campo): ?>
                                   <td>
                                     <input type="checkbox"
                                            class="form-check-input mx-auto"

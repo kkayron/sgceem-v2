@@ -1,5 +1,23 @@
 <?php
 session_start();
+$pagina_id = 60;
+require_once('../api/seguranca_json_deletar.php');
+
+//CSRF
+if (
+    empty($_POST['csrf_token']) ||
+    empty($_SESSION['csrf_token']) ||
+    !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])
+) {
+    http_response_code(403);
+    echo json_encode([
+        'success' => false,
+        'message' => 'Token inválido'
+    ]);
+    exit;
+}
+
+
 include_once("../../conexao/config.php");
 include_once("../../includes/funcoes/log.php");
 
@@ -46,6 +64,10 @@ $stmt_delete_requisicao->bind_param("i", $id);
 
 if ($stmt_delete_requisicao->execute()) {
     $descricao = "Requisição ID {$requisicao['id']} deletada: Requisitante: {$requisicao['requisitante']}, Destinatário: {$requisicao['destinatario']}. Empenho relacionado também deletado.";
+		
+		// 🔒 NOVO TOKEN
+$_SESSION['csrf_token'] = bin2hex(random_bytes(32));	
+	
     registrar_log($conexao, $usuarioLogado, 'Deletar Requisição', $descricao, $id);
 
     echo json_encode(['success' => true]);

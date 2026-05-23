@@ -23,7 +23,7 @@ try {
     $permitido  = intval($_POST['permitido']); // 0 ou 1
 
     // Validação do campo
-    $validos = ['pode_acessar','pode_editar','pode_deletar','pode_cadastrar'];
+    $validos = ['pode_acessar','pode_editar','pode_deletar','pode_cadastrar', 'pode_importar', 'pode_exportar', 'pode_autorizar'];
     if (!in_array($campo, $validos)) {
         echo json_encode(["sucesso" => false, "mensagem" => "Campo inválido."]);
         exit;

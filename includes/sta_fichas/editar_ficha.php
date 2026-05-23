@@ -20,7 +20,7 @@ $usuarioLogado = $_SESSION['usuario_id'] ?? 0;
 $camposObrigatorios = [
   'id_viatura', 'id_om', 'data_abertura', 'solicitante', 'motorista',
   'subunidade', 'destino', 'cidade', 'chefe_apresentar', 'local_apresentar',
-  'horario_apresentar', 'natureza', 'status', 'data_prevista'
+  'horario_apresentar', 'natureza', 'data_prevista'
 ];
 
 foreach ($camposObrigatorios as $campo) {

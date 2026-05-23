@@ -1,6 +1,21 @@
 <?php
 session_start();
 header('Content-Type: application/json; charset=utf-8');
+$pagina_id = 46;
+
+require_once('../api/seguranca_json_editar.php');
+
+// =============================
+// 🔒 CSRF
+// =============================
+if (
+    empty($_POST['csrf_token']) ||
+    empty($_SESSION['csrf_token']) ||
+    !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])
+) {
+    http_response_code(403);
+    resposta_json_and_exit(['status' => 'erro', 'mensagem' => 'Token inválido']);
+}
 
 require_once '../../conexao/config.php';
 require_once '../funcoes/log.php';
@@ -140,6 +155,9 @@ foreach ($pedidosFiltrados as $pid) {
   $stmtLink->execute();
 }
 $stmtLink->close();
+
+// 🔒 NOVO TOKEN
+$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 
 // 4) Log
 registrar_log(

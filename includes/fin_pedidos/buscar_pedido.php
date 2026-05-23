@@ -1,7 +1,11 @@
 <?php
 // buscar_pedido.php
-header('Content-Type: application/json');
 session_start();
+header('Content-Type: application/json');
+
+$pagina_ids = [17, 25];
+require_once('../api/seguranca_json.php');
+
 include_once("../../conexao/config.php");
 
 $id = $_GET['id'] ?? null;

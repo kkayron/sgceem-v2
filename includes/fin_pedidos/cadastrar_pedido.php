@@ -1,5 +1,23 @@
 <?php
 session_start();
+
+//CSRF
+if (
+    empty($_POST['csrf_token']) ||
+    empty($_SESSION['csrf_token']) ||
+    !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])
+) {
+    http_response_code(403);
+    echo json_encode([
+        'success' => false,
+        'message' => 'Token inválido'
+    ]);
+    exit;
+}
+
+$pagina_ids = [17, 25];
+require_once('../api/seguranca_json_cadastrar.php');
+
 include_once("../../conexao/config.php");
 include_once("../../includes/funcoes/log_pedido_financeiro.php");
 
@@ -7,10 +25,6 @@ include_once("../../includes/funcoes/log_pedido_financeiro.php");
 // CONFIGURAÇÕES GERAIS
 // ============================
 header('Content-Type: application/json; charset=UTF-8');
-mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
-error_reporting(E_ALL);
-ini_set('display_errors', 0);
-
 // ============================
 // FUNÇÃO DE SANITIZAÇÃO
 // ============================
@@ -152,6 +166,9 @@ try {
     $stmt->execute();
 
     $id_pedido = $stmt->insert_id;
+	
+	// 🔒 NOVO TOKEN
+$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 
     // ============================
     // LOG

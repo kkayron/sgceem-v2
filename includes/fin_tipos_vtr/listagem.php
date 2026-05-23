@@ -1,4 +1,31 @@
 <?php
+require_once '../api/seguranca.php';
+
+$permissoes = verificarPermissao([49]);
+
+$pode_cadastrar = $permissoes['cadastrar'];
+$pode_editar    = $permissoes['editar'];
+$pode_deletar   = $permissoes['deletar'];
+$pode_importar  = $permissoes['importar'];
+$pode_exportar  = $permissoes['exportar'];
+$pode_autorizar  = $permissoes['autorizar'];
+
+if (!isset($_SESSION['usuario_id'])) {
+  http_response_code(401);
+  echo "<div class='alert alert-danger'>Sessão expirada. Faça login novamente.</div>";
+  exit;
+}
+
+// BLOQUEAR ACESSO DIRETO VIA URL
+if (
+    !isset($_SERVER['HTTP_X_REQUESTED_WITH']) ||
+    strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) !== 'xmlhttprequest'
+) {
+    http_response_code(403);
+    echo "<div class='alert alert-danger'>Acesso direto não permitido.</div>";
+    exit;
+}
+
 include_once('../../conexao/config.php');
 
 // -------------------- FILTROS --------------------
@@ -108,9 +135,11 @@ $queryString = http_build_query($paramsGET);
         <h6 class="text-muted">Tipos de Vtr/Eqp</h6>
       </div>
       <div>
+		  <?php if($pode_cadastrar): ?>
         <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalCadastroTipo">
           <i class="fa fa-plus me-1"></i> Cadastrar Tipo
         </button>
+		  <?php endif; ?>
       </div>
     </div>
 
@@ -216,7 +245,6 @@ $queryString = http_build_query($paramsGET);
               </div>
 
               <div class="d-flex align-items-center gap-2">
-                
                 <!-- Botão accordion -->
                 <button class="btn btn-sm btn-outline-secondary rounded-circle"
                         type="button"
@@ -225,6 +253,7 @@ $queryString = http_build_query($paramsGET);
                   <i class="fas fa-chevron-down"></i>
                 </button>
 
+		  <?php if($pode_editar): ?>
                 <!-- Editar -->
                 <button class="btn btn-sm btn-outline-warning"
                         onclick="editarTipoRV(<?= $item['id'] ?>)"
@@ -232,15 +261,18 @@ $queryString = http_build_query($paramsGET);
                         data-bs-target="#modalEditarTipoRV">
                   <i class="fas fa-edit me-1"></i> Editar
                 </button>
-
+<?php endif; ?>
                 <!-- Excluir -->
+				  <?php if($pode_deletar): ?>
                 <button
   type="button"
   class="btn btn-sm btn-outline-danger"
   data-id="<?= $item['id'] ?>"
+  data-token="<?= htmlspecialchars($_SESSION['csrf_token']) ?>"
   onclick="deletarTipoVtrEqp(this)">
   <i class="fas fa-trash"></i>
 </button>
+<?php endif; ?>
 
 
               </div>
@@ -280,7 +312,7 @@ $queryString = http_build_query($paramsGET);
 <div class="mt-3">
   <?= renderPaginacaoTipos($paginaAtual, $totalPaginas) ?>
 </div>
-
+<?php if($pode_cadastrar): ?>
 <!-- MODAL CADASTRO TIPO VTR/EQP -->
 <div class="modal fade" id="modalCadastroTipo" tabindex="-1" aria-labelledby="modalCadastroTipoLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-md">
@@ -329,7 +361,8 @@ $queryString = http_build_query($paramsGET);
     </div>
   </div>
 </div>
-
+	  <?php endif; ?>
+<?php if($pode_editar): ?>
       <!-- MODAL EDITAR TIPO VTR/EQP -->
 <div class="modal fade" id="modalEditarTipoRV" tabindex="-1" aria-labelledby="modalEditarTipoRVLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-md">
@@ -392,9 +425,7 @@ $queryString = http_build_query($paramsGET);
     </div>
   </div>
 </div>
-
-
-      
+	  <?php endif; ?>
 <!-- Script da página de Cadastro de Fornecedores -->
 <script>
     window.funcaoInicializacao = 'inicializarTipoVtrEqp';

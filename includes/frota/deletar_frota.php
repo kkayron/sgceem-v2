@@ -1,170 +1,218 @@
 <?php
+session_start();
 header('Content-Type: application/json; charset=utf-8');
 
 $pagina_id = 14;
-session_start();
-require_once('../api/seguranca_json_deletar.php');
+
 require_once('../../conexao/config.php');
 require_once("../../includes/funcoes/log.php");
+require_once('../api/seguranca_json_deletar.php');
+require_once('../api/batalhoes_permitidos.php');
 
-header('Content-Type: application/json; charset=utf-8');
+$nivel_usuario    = $_SESSION['usuario']['nivel'] ?? 3;
+$batalhao_usuario = $_SESSION['usuario']['batalhao'] ?? 0;
+$usuarioLogado    = (int)($_SESSION['usuario_id'] ?? 0);
 
-ob_start();
 
-register_shutdown_function(function () {
-    $err = error_get_last();
-    if ($err && in_array($err['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR], true)) {
-        if (ob_get_length()) ob_clean();
-        http_response_code(500);
-        echo json_encode([
-            'success' => false,
-            'message' => 'Erro fatal no servidor ao deletar.',
-            'debug'   => $err['message'] . ' em ' . $err['file'] . ':' . $err['line']
-        ]);
-    }
-});
+// ==============================
+// 🔒 BATALHÕES PERMITIDOS
+// ==============================
+try {
+    $batalhoesPermitidos = obterBatalhoesPermitidos($conexao, $nivel_usuario, $batalhao_usuario);
+} catch (Throwable $e) {
+    http_response_code(500);
+    echo json_encode(['success' => false, 'message' => 'Erro ao validar permissões']);
+    exit;
+}
 
-// Validação do ID
+
+// ==============================
+// 🔒 CSRF
+// ==============================
+if (
+    empty($_POST['csrf_token']) ||
+    empty($_SESSION['csrf_token']) ||
+    !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])
+) {
+    http_response_code(403);
+    echo json_encode([
+        'success' => false,
+        'message' => 'Token inválido'
+    ]);
+    exit;
+}
+
+
+// ==============================
+// 🔒 VALIDAR ID
+// ==============================
 $id = isset($_POST['id']) ? (int)$_POST['id'] : 0;
+
 if ($id <= 0) {
-    if (ob_get_length()) ob_clean();
     echo json_encode(['success' => false, 'message' => 'ID inválido']);
     exit;
 }
 
-$usuarioLogado = (int)($_SESSION['usuario_id'] ?? 0);
 
+// ==============================
+// 🔍 1) BUSCAR FROTA (COM BATALHÃO)
+// ==============================
+$stmt_select = $conexao->prepare("
+    SELECT id, prefixo_sga, tipo, marca, modelo, placa, chassi, batalhao
+    FROM frota
+    WHERE id = ?
+    LIMIT 1
+");
+
+if (!$stmt_select) {
+    echo json_encode(['success' => false, 'message' => 'Erro ao buscar frota']);
+    exit;
+}
+
+$stmt_select->bind_param("i", $id);
+$stmt_select->execute();
+$result = $stmt_select->get_result();
+
+if ($result->num_rows === 0) {
+    $stmt_select->close();
+    echo json_encode(['success' => false, 'message' => 'Frota não encontrada']);
+    exit;
+}
+
+$frota = $result->fetch_assoc();
+$stmt_select->close();
+
+
+// ==============================
+// 🔒 2) VALIDAR PERMISSÃO
+// ==============================
+$batalhaoFrota = (int)$frota['batalhao'];
+
+// Se NÃO for admin (null = acesso total)
+if ($batalhoesPermitidos !== null) {
+
+    if (!in_array($batalhaoFrota, $batalhoesPermitidos)) {
+        http_response_code(403);
+        echo json_encode([
+            'success' => false,
+            'message' => 'Sem permissão para deletar esta frota'
+        ]);
+        exit;
+    }
+}
+
+$prefixo = $frota['prefixo_sga'] ?? '';
+
+
+// ==============================
+// 🚀 3) TRANSAÇÃO
+// ==============================
 try {
     $conexao->begin_transaction();
 
-    // 1) Buscar dados da frota
-    $stmt_select = $conexao->prepare("
-        SELECT id, prefixo_sga, tipo, marca, modelo, placa, chassi
-        FROM frota
-        WHERE id = ?
-        LIMIT 1
-    ");
-    if (!$stmt_select) throw new Exception("Prepare SELECT frota falhou: " . $conexao->error);
 
-    $stmt_select->bind_param("i", $id);
-    $stmt_select->execute();
-    $result = $stmt_select->get_result();
-
-    if ($result->num_rows === 0) {
-        $stmt_select->close();
-        $conexao->rollback();
-        if (ob_get_length()) ob_clean();
-        echo json_encode(['success' => false, 'message' => 'Frota não encontrada']);
-        exit;
-    }
-
-    $frota = $result->fetch_assoc();
-    $prefixo = $frota['prefixo_sga'] ?? '';
-    $stmt_select->close();
-
-    // 2) Buscar medições (para log) - SEM horímetro
+    // ==========================
+    // 📋 LOG DAS MEDIÇÕES
+    // ==========================
     $stmt_medicoes_log = $conexao->prepare("
         SELECT DATE_FORMAT(data, '%d/%m/%Y') AS data, odometro
         FROM controle_medicoes
         WHERE viatura_id = ?
         ORDER BY data ASC
     ");
-    if (!$stmt_medicoes_log) throw new Exception("Prepare SELECT medições falhou: " . $conexao->error);
 
-    $stmt_medicoes_log->bind_param("i", $id);
-    $stmt_medicoes_log->execute();
-    $result_medicoes = $stmt_medicoes_log->get_result();
+    if ($stmt_medicoes_log) {
+        $stmt_medicoes_log->bind_param("i", $id);
+        $stmt_medicoes_log->execute();
+        $result_medicoes = $stmt_medicoes_log->get_result();
 
-    $descricao_medicoes = "";
-    while ($medicao = $result_medicoes->fetch_assoc()) {
-        $data = $medicao['data'] ?? 'N/A';
-        $odo  = $medicao['odometro'] ?? 'N/A';
-        $descricao_medicoes .= "Data: {$data} - Odômetro: {$odo}\n";
+        $descricao_medicoes = "";
+
+        while ($medicao = $result_medicoes->fetch_assoc()) {
+            $descricao_medicoes .= "Data: {$medicao['data']} - Odômetro: {$medicao['odometro']}\n";
+        }
+
+        $stmt_medicoes_log->close();
+
+        if (!empty($descricao_medicoes)) {
+            try {
+                registrar_log($conexao, $usuarioLogado, 'Excluir medições',
+                    "Medições da viatura {$prefixo} serão excluídas:\n" . $descricao_medicoes,
+                    $id
+                );
+            } catch (Throwable $e) {}
+        }
     }
-    $stmt_medicoes_log->close();
 
-    // 3) Registrar log das medições (não derruba o processo)
-    if (!empty($descricao_medicoes)) {
-        $descricao_logs = "Medições da viatura {$prefixo} serão excluídas:\n" . $descricao_medicoes;
-        try {
-            registrar_log($conexao, $usuarioLogado, 'Excluir medições', $descricao_logs, $id);
-        } catch (Throwable $e) {}
-    }
 
     // ==========================
-    // 4) DELETAR DEPENDÊNCIAS
+    // 🧨 DELETES
     // ==========================
 
-    // 4.1) Medições
-    $stmt_medicoes = $conexao->prepare("DELETE FROM controle_medicoes WHERE viatura_id = ?");
-    if (!$stmt_medicoes) throw new Exception("Prepare DELETE medições falhou: " . $conexao->error);
-    $stmt_medicoes->bind_param("i", $id);
-    $stmt_medicoes->execute();
-    $stmt_medicoes->close();
+    $stmt = $conexao->prepare("DELETE FROM controle_medicoes WHERE viatura_id = ?");
+    $stmt->bind_param("i", $id);
+    $stmt->execute();
+    $stmt->close();
 
-    // 4.2) Fichas
-    $stmt_fichas = $conexao->prepare("DELETE FROM sta_fichas WHERE id_viatura = ?");
-    if (!$stmt_fichas) throw new Exception("Prepare DELETE fichas falhou: " . $conexao->error);
-    $stmt_fichas->bind_param("i", $id);
-    $stmt_fichas->execute();
-    $stmt_fichas->close();
+    $stmt = $conexao->prepare("DELETE FROM sta_fichas WHERE id_viatura = ?");
+    $stmt->bind_param("i", $id);
+    $stmt->execute();
+    $stmt->close();
 
-    // 4.3) Logs da frota
-    $stmt_logs = $conexao->prepare("DELETE FROM logs WHERE frota_id = ?");
-    if (!$stmt_logs) throw new Exception("Prepare DELETE logs falhou: " . $conexao->error);
-    $stmt_logs->bind_param("i", $id);
-    $stmt_logs->execute();
-    $stmt_logs->close();
+    $stmt = $conexao->prepare("DELETE FROM logs WHERE frota_id = ?");
+    $stmt->bind_param("i", $id);
+    $stmt->execute();
+    $stmt->close();
 
-    // 4.4) OS da frota
-    // ⚠️ Se existirem tabelas filhas de os_principal, delete-as antes aqui.
-    // Exemplo (ajuste nomes se existirem):
-    // $stmt_os_itens = $conexao->prepare("DELETE FROM os_itens WHERE id_os IN (SELECT id FROM os_principal WHERE id_frota = ?)");
-    // $stmt_os_itens->bind_param("i", $id);
-    // $stmt_os_itens->execute();
-    // $stmt_os_itens->close();
+    $stmt = $conexao->prepare("DELETE FROM os_principal WHERE id_frota = ?");
+    $stmt->bind_param("i", $id);
+    $stmt->execute();
+    $stmt->close();
 
-    $stmt_os = $conexao->prepare("DELETE FROM os_principal WHERE id_frota = ?");
-    if (!$stmt_os) throw new Exception("Prepare DELETE OS falhou: " . $conexao->error);
-    $stmt_os->bind_param("i", $id);
-    $stmt_os->execute();
-    $stmt_os->close();
 
     // ==========================
-    // 5) DELETAR FROTA
+    // 🗑️ DELETAR FROTA
     // ==========================
     $stmt_delete = $conexao->prepare("DELETE FROM frota WHERE id = ?");
-    if (!$stmt_delete) throw new Exception("Prepare DELETE frota falhou: " . $conexao->error);
     $stmt_delete->bind_param("i", $id);
 
     if (!$stmt_delete->execute()) {
-        $erro = $stmt_delete->error;
-        $stmt_delete->close();
-        throw new Exception("Erro ao deletar frota: " . $erro);
+        throw new Exception("Erro ao deletar frota");
     }
+
     $stmt_delete->close();
 
-    // 6) Log do delete (não derruba)
-    $descricao = "Frota ID {$id} deletada: Prefixo {$frota['prefixo_sga']}, Tipo: {$frota['tipo']}, Marca: {$frota['marca']}, Modelo: {$frota['modelo']}, Placa: {$frota['placa']}, Chassi: {$frota['chassi']}";
+
+    // ==========================
+    // 🧾 LOG FINAL
+    // ==========================
     try {
-        registrar_log($conexao, $usuarioLogado, 'Deletar frota', $descricao, $id);
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+
+        registrar_log(
+            $conexao,
+            $usuarioLogado,
+            'Deletar frota',
+            "Frota ID {$id} deletada: Prefixo {$frota['prefixo_sga']}, Tipo: {$frota['tipo']}, Marca: {$frota['marca']}, Modelo: {$frota['modelo']}, Placa: {$frota['placa']}, Chassi: {$frota['chassi']}",
+            $id
+        );
+
     } catch (Throwable $e) {}
+
 
     $conexao->commit();
 
-    if (ob_get_length()) ob_clean();
     echo json_encode(['success' => true]);
     exit;
 
 } catch (Throwable $e) {
+
     $conexao->rollback();
 
-    if (ob_get_length()) ob_clean();
-    http_response_code(500);
     echo json_encode([
         'success' => false,
-        'message' => 'Falha ao deletar.',
-        'debug'   => $e->getMessage()
+        'message' => 'Falha ao deletar',
+        'debug' => $e->getMessage()
     ]);
     exit;
 }
