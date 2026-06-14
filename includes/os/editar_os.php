@@ -6,6 +6,64 @@ session_start();
 
 mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 
+// ===============================
+// FUNÇÃO PARA ATUALIZAR DISPONIBILIDADE DA FROTA
+// ===============================
+function atualizarDisponibilidadeFrota($conexao, $id_frota) {
+    if (!$id_frota || !is_numeric($id_frota)) {
+        return;
+    }
+
+    $id_frota = (int)$id_frota;
+
+    $sql = "
+        SELECT
+            SUM(
+                CASE 
+                    WHEN LOWER(TRIM(causa_indisponibilidade)) = 'sim'
+                    THEN 1 ELSE 0 
+                END
+            ) AS total_indisponivel,
+
+            SUM(
+                CASE 
+                    WHEN LOWER(TRIM(causa_indisponibilidade)) IN ('não', 'nao')
+                    THEN 1 ELSE 0 
+                END
+            ) AS total_restricao
+
+        FROM os_principal
+        WHERE id_frota = ?
+          AND LOWER(TRIM(status)) NOT IN ('concluída', 'concluida')
+    ";
+
+    $stmt = $conexao->prepare($sql);
+    $stmt->bind_param("i", $id_frota);
+    $stmt->execute();
+    $dados = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+
+    $total_indisponivel = (int)($dados['total_indisponivel'] ?? 0);
+    $total_restricao = (int)($dados['total_restricao'] ?? 0);
+
+    if ($total_indisponivel > 0) {
+        $disponibilidade = 'Indisponível';
+    } elseif ($total_restricao > 0) {
+        $disponibilidade = 'Disponível com restrição';
+    } else {
+        $disponibilidade = 'Disponível';
+    }
+
+    $stmtUpdate = $conexao->prepare("
+        UPDATE frota 
+        SET disponibilidade = ?
+        WHERE id = ?
+    ");
+    $stmtUpdate->bind_param("si", $disponibilidade, $id_frota);
+    $stmtUpdate->execute();
+    $stmtUpdate->close();
+}
+
 $id_os = $_POST['id_os'] ?? null;
 
 if (!$id_os || !is_numeric($id_os)) {
@@ -23,10 +81,13 @@ try {
     $stmtOld->bind_param("i", $id_os);
     $stmtOld->execute();
     $old_os = $stmtOld->get_result()->fetch_assoc();
+    $stmtOld->close();
 
     if (!$old_os) {
         throw new Exception("OS não encontrada.");
     }
+
+    $id_frota_os = $old_os['id_frota'] ?? null;
 
     $data_encerramento = $_POST['data_encerramento'] ?? '';
     $observacao = $_POST['observacoes'] ?? '';
@@ -98,6 +159,14 @@ try {
     );
 
     $update->execute();
+    $update->close();
+
+    // ===============================
+    // ATUALIZA DISPONIBILIDADE DA FROTA
+    // ===============================
+    if (is_numeric($id_frota_os)) {
+        atualizarDisponibilidadeFrota($conexao, $id_frota_os);
+    }
 
     $alteracoes = [];
     $novos_valores = [
@@ -127,18 +196,22 @@ try {
     $stmtDel = $conexao->prepare("DELETE FROM os_falhas WHERE id_osprincipal = ?");
     $stmtDel->bind_param("i", $id_os);
     $stmtDel->execute();
+    $stmtDel->close();
 
     $stmtDel = $conexao->prepare("DELETE FROM os_pessoal WHERE id_osprincipal = ?");
     $stmtDel->bind_param("i", $id_os);
     $stmtDel->execute();
+    $stmtDel->close();
 
     $stmtDel = $conexao->prepare("DELETE FROM os_rlzdmnt WHERE id_osprincipal = ?");
     $stmtDel->bind_param("i", $id_os);
     $stmtDel->execute();
+    $stmtDel->close();
 
     $stmtDel = $conexao->prepare("DELETE FROM os_itens WHERE id_osprincipal = ?");
     $stmtDel->bind_param("i", $id_os);
     $stmtDel->execute();
+    $stmtDel->close();
 
     // ===============================
     // SINCRONIZA MANUTENÇÕES PROGRAMADAS
@@ -146,6 +219,7 @@ try {
     $stmtDelMnt = $conexao->prepare("DELETE FROM mnt_execucoes WHERE id_osprincipal = ?");
     $stmtDelMnt->bind_param("i", $id_os);
     $stmtDelMnt->execute();
+    $stmtDelMnt->close();
 
     $manutencoes_programadas = $_POST['manutencoes_programadas'] ?? [];
 
@@ -172,6 +246,7 @@ try {
         $stmtDadosOS->bind_param("i", $id_os);
         $stmtDadosOS->execute();
         $dadosOS = $stmtDadosOS->get_result()->fetch_assoc();
+        $stmtDadosOS->close();
 
         if ($dadosOS) {
             $id_frota_execucao = (int)$dadosOS['id_frota'];
@@ -228,6 +303,9 @@ try {
                 );
                 $stmtInsMnt->execute();
             }
+
+            $stmtValidaPlano->close();
+            $stmtInsMnt->close();
         }
     }
 
@@ -257,6 +335,8 @@ try {
 
         $falhas_log[] = "Falha: Seção '$secao', Falha '$falha', Militar '$militar'";
     }
+
+    $stmtFalha->close();
 
     // ===============================
     // PESSOAL
@@ -288,6 +368,8 @@ try {
 
         $pessoal_log[] = "Pessoal: Graduação '$grad', Nome '$nome', Função '$funcao', Data '$data', Serviço '$servico'";
     }
+
+    $stmtPessoal->close();
 
     // ===============================
     // SERVIÇOS
@@ -326,6 +408,8 @@ try {
         $servicos_log[] = "Serviço: Empresa '$empresa', Execução '$exec', Qtd '$qtd', Valor Unit. '$valor_unt'";
     }
 
+    $stmtServico->close();
+
     // ===============================
     // MATERIAIS
     // ===============================
@@ -357,139 +441,147 @@ try {
 
         $materiais_log[] = "Material: Descrição '$desc', Qtd '$qtd', Valor Unit. '$valor_unt', Total '$valor_total', Origem '$origem'";
     }
-	
-// ===============================
-// EXCLUIR FOTOS DA OS
-// ===============================
-$fotos_excluir_log = [];
 
-$fotosExcluir = $_POST['fotos_excluir'] ?? '';
+    $stmtMaterial->close();
 
-if (!empty($fotosExcluir)) {
-    $idsFotos = array_filter(array_map('intval', explode(',', $fotosExcluir)));
+    // ===============================
+    // EXCLUIR FOTOS DA OS
+    // ===============================
+    $fotos_excluir_log = [];
 
-    if (!empty($idsFotos)) {
-        $placeholders = implode(',', array_fill(0, count($idsFotos), '?'));
-        $types = str_repeat('i', count($idsFotos));
+    $fotosExcluir = $_POST['fotos_excluir'] ?? '';
 
-        $stmtBuscaFotos = $conexao->prepare("
-            SELECT id, caminho, nome_arquivo
-            FROM os_fotos
-            WHERE id_osprincipal = ?
-              AND id IN ($placeholders)
-        ");
+    if (!empty($fotosExcluir)) {
+        $idsFotos = array_filter(array_map('intval', explode(',', $fotosExcluir)));
 
-        $paramsBusca = array_merge([$id_os], $idsFotos);
-        $typesBusca = 'i' . $types;
+        if (!empty($idsFotos)) {
+            $placeholders = implode(',', array_fill(0, count($idsFotos), '?'));
+            $types = str_repeat('i', count($idsFotos));
 
-        $stmtBuscaFotos->bind_param($typesBusca, ...$paramsBusca);
-        $stmtBuscaFotos->execute();
-
-        $resFotosExcluir = $stmtBuscaFotos->get_result();
-
-        $fotosParaExcluir = [];
-
-        while ($foto = $resFotosExcluir->fetch_assoc()) {
-            $fotosParaExcluir[] = $foto;
-        }
-
-        if (!empty($fotosParaExcluir)) {
-            $stmtDelFoto = $conexao->prepare("
-                DELETE FROM os_fotos
+            $stmtBuscaFotos = $conexao->prepare("
+                SELECT id, caminho, nome_arquivo
+                FROM os_fotos
                 WHERE id_osprincipal = ?
-                  AND id = ?
+                  AND id IN ($placeholders)
             ");
 
-            foreach ($fotosParaExcluir as $foto) {
-                $idFoto = (int)$foto['id'];
+            $paramsBusca = array_merge([$id_os], $idsFotos);
+            $typesBusca = 'i' . $types;
 
-                $stmtDelFoto->bind_param("ii", $id_os, $idFoto);
-                $stmtDelFoto->execute();
+            $stmtBuscaFotos->bind_param($typesBusca, ...$paramsBusca);
+            $stmtBuscaFotos->execute();
 
-                $caminhoFisico = '../../' . ltrim($foto['caminho'], '/');
+            $resFotosExcluir = $stmtBuscaFotos->get_result();
 
-                if (is_file($caminhoFisico)) {
-                    @unlink($caminhoFisico);
+            $fotosParaExcluir = [];
+
+            while ($foto = $resFotosExcluir->fetch_assoc()) {
+                $fotosParaExcluir[] = $foto;
+            }
+
+            $stmtBuscaFotos->close();
+
+            if (!empty($fotosParaExcluir)) {
+                $stmtDelFoto = $conexao->prepare("
+                    DELETE FROM os_fotos
+                    WHERE id_osprincipal = ?
+                      AND id = ?
+                ");
+
+                foreach ($fotosParaExcluir as $foto) {
+                    $idFoto = (int)$foto['id'];
+
+                    $stmtDelFoto->bind_param("ii", $id_os, $idFoto);
+                    $stmtDelFoto->execute();
+
+                    $caminhoFisico = '../../' . ltrim($foto['caminho'], '/');
+
+                    if (is_file($caminhoFisico)) {
+                        @unlink($caminhoFisico);
+                    }
+
+                    $fotos_excluir_log[] = "Foto '{$foto['nome_arquivo']}' excluída";
                 }
 
-                $fotos_excluir_log[] = "Foto '{$foto['nome_arquivo']}' excluída";
+                $stmtDelFoto->close();
             }
         }
     }
-}
-	
-// ===============================
-// FOTOS DA OS
-// ===============================
-$fotos_log = [];
 
-if (!empty($_FILES['fotos_os']['name'][0])) {
+    // ===============================
+    // FOTOS DA OS
+    // ===============================
+    $fotos_log = [];
 
-    $pastaBase = '../../uploads/os_fotos/';
-    $pastaRelativa = 'uploads/os_fotos/';
+    if (!empty($_FILES['fotos_os']['name'][0])) {
 
-    if (!is_dir($pastaBase)) {
-        mkdir($pastaBase, 0775, true);
+        $pastaBase = '../../uploads/os_fotos/';
+        $pastaRelativa = 'uploads/os_fotos/';
+
+        if (!is_dir($pastaBase)) {
+            mkdir($pastaBase, 0775, true);
+        }
+
+        $permitidos = ['jpg', 'jpeg', 'png', 'webp'];
+        $legendaFoto = trim($_POST['legenda_foto_os'] ?? '');
+
+        $stmtFoto = $conexao->prepare("
+            INSERT INTO os_fotos (
+                id_osprincipal,
+                nome_arquivo,
+                caminho,
+                legenda,
+                usuario_id
+            ) VALUES (?, ?, ?, ?, ?)
+        ");
+
+        foreach ($_FILES['fotos_os']['name'] as $i => $nomeOriginal) {
+            if ($_FILES['fotos_os']['error'][$i] !== UPLOAD_ERR_OK) {
+                continue;
+            }
+
+            $tmp = $_FILES['fotos_os']['tmp_name'][$i];
+            $tamanho = $_FILES['fotos_os']['size'][$i];
+
+            if ($tamanho > 5 * 1024 * 1024) {
+                continue;
+            }
+
+            $ext = strtolower(pathinfo($nomeOriginal, PATHINFO_EXTENSION));
+
+            if (!in_array($ext, $permitidos)) {
+                continue;
+            }
+
+            $mime = mime_content_type($tmp);
+
+            if (strpos($mime, 'image/') !== 0) {
+                continue;
+            }
+
+            $novoNome = 'os_' . $id_os . '_' . date('YmdHis') . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
+
+            $destinoFisico = $pastaBase . $novoNome;
+            $destinoBanco = $pastaRelativa . $novoNome;
+
+            if (move_uploaded_file($tmp, $destinoFisico)) {
+                $stmtFoto->bind_param(
+                    "isssi",
+                    $id_os,
+                    $nomeOriginal,
+                    $destinoBanco,
+                    $legendaFoto,
+                    $usuarioLogado
+                );
+
+                $stmtFoto->execute();
+
+                $fotos_log[] = "Foto '$nomeOriginal' enviada";
+            }
+        }
+
+        $stmtFoto->close();
     }
-
-    $permitidos = ['jpg', 'jpeg', 'png', 'webp'];
-    $legendaFoto = trim($_POST['legenda_foto_os'] ?? '');
-
-    $stmtFoto = $conexao->prepare("
-        INSERT INTO os_fotos (
-            id_osprincipal,
-            nome_arquivo,
-            caminho,
-            legenda,
-            usuario_id
-        ) VALUES (?, ?, ?, ?, ?)
-    ");
-
-    foreach ($_FILES['fotos_os']['name'] as $i => $nomeOriginal) {
-        if ($_FILES['fotos_os']['error'][$i] !== UPLOAD_ERR_OK) {
-            continue;
-        }
-
-        $tmp = $_FILES['fotos_os']['tmp_name'][$i];
-        $tamanho = $_FILES['fotos_os']['size'][$i];
-
-        if ($tamanho > 5 * 1024 * 1024) {
-            continue;
-        }
-
-        $ext = strtolower(pathinfo($nomeOriginal, PATHINFO_EXTENSION));
-
-        if (!in_array($ext, $permitidos)) {
-            continue;
-        }
-
-        $mime = mime_content_type($tmp);
-
-        if (strpos($mime, 'image/') !== 0) {
-            continue;
-        }
-
-        $novoNome = 'os_' . $id_os . '_' . date('YmdHis') . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
-
-        $destinoFisico = $pastaBase . $novoNome;
-        $destinoBanco = $pastaRelativa . $novoNome;
-
-        if (move_uploaded_file($tmp, $destinoFisico)) {
-            $stmtFoto->bind_param(
-                "isssi",
-                $id_os,
-                $nomeOriginal,
-                $destinoBanco,
-                $legendaFoto,
-                $usuarioLogado
-            );
-
-            $stmtFoto->execute();
-
-            $fotos_log[] = "Foto '$nomeOriginal' enviada";
-        }
-    }
-}
 
     // ===============================
     // LOG
@@ -499,10 +591,10 @@ if (!empty($_FILES['fotos_os']['name'][0])) {
     if (!empty($alteracoes)) {
         $descricaoLog .= implode("; ", $alteracoes) . ". ";
     }
-	
-	if (!empty($fotos_log)) {
-    $descricaoLog .= "Fotos adicionadas: " . implode("; ", $fotos_log) . ". ";
-}
+
+    if (!empty($fotos_log)) {
+        $descricaoLog .= "Fotos adicionadas: " . implode("; ", $fotos_log) . ". ";
+    }
 
     if (!empty($falhas_log)) {
         $descricaoLog .= "Falhas adicionadas: " . implode("; ", $falhas_log) . ". ";
@@ -511,10 +603,10 @@ if (!empty($_FILES['fotos_os']['name'][0])) {
     if (!empty($pessoal_log)) {
         $descricaoLog .= "Pessoal adicionado: " . implode("; ", $pessoal_log) . ". ";
     }
-	
-	if (!empty($fotos_excluir_log)) {
-    $descricaoLog .= "Fotos excluídas: " . implode("; ", $fotos_excluir_log) . ". ";
-}
+
+    if (!empty($fotos_excluir_log)) {
+        $descricaoLog .= "Fotos excluídas: " . implode("; ", $fotos_excluir_log) . ". ";
+    }
 
     if (!empty($servicos_log)) {
         $descricaoLog .= "Serviços adicionados: " . implode("; ", $servicos_log) . ". ";

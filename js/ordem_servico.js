@@ -385,57 +385,124 @@ if (btnLimparOS && formOS) {
   });
 }
 
- // ABRIR ORDEM DE SERVIÇO
-const formAbrirOS = document.getElementById('form-os-abrir');
-if (formAbrirOS) {
-  formAbrirOS.addEventListener('submit', function (e) {
-    e.preventDefault();
-    const formData = new FormData(formAbrirOS);
+ // ========================================
+// ABRIR ORDEM DE SERVIÇO
+// ========================================
 
-    fetch('includes/os/abrir_os.php', {
-      method: 'POST',
-      body: formData
-    })
-    .then(res => res.json())
-    .then(data => {
-      if (data.status === 'sucesso') {
-        swal({
-          title: "Sucesso!",
-          text: data.mensagem || "Ordem de serviço registrada com sucesso!",
-          icon: "success",
-          button: {
-            text: "OK",
-            className: "btn btn-success"
-          }
-        }).then(() => {
-          carregarPagina('includes/os/listagem.php');
-          fecharModalAberto();
-        });
-      } else {
-        swal({
-          title: "Erro!",
-          text: data.mensagem || "Erro ao registrar ordem de serviço.",
-          icon: "error",
-          button: {
-            text: "Fechar",
-            className: "btn btn-danger"
-          }
-        });
-      }
-    })
-    .catch(err => {
-      swal({
-        title: "Erro!",
-        text: "Erro de rede: " + err.message,
-        icon: "error",
-        button: {
-          text: "Fechar",
-          className: "btn btn-danger"
+const formAbrirOS = document.getElementById('form-os-abrir');
+
+if (formAbrirOS) {
+
+    formAbrirOS.addEventListener('submit', function (e) {
+
+        e.preventDefault();
+
+        const btnSubmit = formAbrirOS.querySelector('button[type="submit"]');
+
+        if (btnSubmit.disabled) {
+            return;
         }
-      });
+
+        const textoOriginal = btnSubmit.innerHTML;
+
+        btnSubmit.disabled = true;
+
+        btnSubmit.innerHTML = `
+            <span class="spinner-border spinner-border-sm me-2"></span>
+            Abrindo OS...
+        `;
+
+        const formData = new FormData(formAbrirOS);
+
+        fetch('includes/os/abrir_os.php', {
+            method: 'POST',
+            body: formData
+        })
+
+        .then(res => res.text())
+
+        .then(text => {
+
+            console.log('📌 Resposta abrir_os.php:', text);
+
+            let data;
+
+            try {
+
+                data = JSON.parse(text);
+
+            } catch (err) {
+
+                btnSubmit.disabled = false;
+                btnSubmit.innerHTML = textoOriginal;
+
+                swal({
+                    title: "Erro!",
+                    text: "Resposta inválida do servidor. Veja o Console (F12).",
+                    icon: "error"
+                });
+
+                return;
+            }
+
+            if (data.status === 'sucesso') {
+
+                swal({
+                    title: "Sucesso!",
+                    text: data.mensagem || "Ordem de serviço registrada com sucesso!",
+                    icon: "success",
+                    button: {
+                        text: "OK",
+                        className: "btn btn-success"
+                    }
+                })
+
+                .then(() => {
+
+                    carregarPagina('includes/os/listagem.php');
+
+                    fecharModalAberto();
+
+                });
+
+                return;
+            }
+
+            btnSubmit.disabled = false;
+            btnSubmit.innerHTML = textoOriginal;
+
+            swal({
+                title: "Erro!",
+                text: data.mensagem || "Erro ao registrar ordem de serviço.",
+                icon: "error",
+                button: {
+                    text: "Fechar",
+                    className: "btn btn-danger"
+                }
+            });
+
+        })
+
+        .catch(err => {
+
+            btnSubmit.disabled = false;
+            btnSubmit.innerHTML = textoOriginal;
+
+            swal({
+                title: "Erro!",
+                text: "Erro de rede: " + err.message,
+                icon: "error",
+                button: {
+                    text: "Fechar",
+                    className: "btn btn-danger"
+                }
+            });
+
+        });
+
     });
-  }); // <-- ESTA CHAVE FECHA O formAbrirOS.addEventListener
-} // <-- ESTA CHAVE FECHA O if (formAbrirOS)
+
+}
 
 // CARREGAR PLANOS DE MANUTENÇÃO DA VIATURA NA OS
 const selectFrotaOS = document.getElementById('id_frota');

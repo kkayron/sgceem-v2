@@ -1529,6 +1529,7 @@ document.getElementById("sum_diferenca").innerText           = "<?= number_forma
             
           <input type="hidden" id="gerar-id-requisicao" name="id">
 
+	  <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
           <button type="submit" class="btn btn-success w-100">
             <i class="fas fa-file-invoice-dollar me-1"></i> SALVAR EMPENHO
           </button>
@@ -1706,6 +1707,7 @@ document.getElementById("sum_diferenca").innerText           = "<?= number_forma
           </div>
 
           <button type="submit" class="btn btn-primary w-100">
+	  <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
             <i class="fas fa-save me-1"></i> Atualizar Empenho
           </button>
 

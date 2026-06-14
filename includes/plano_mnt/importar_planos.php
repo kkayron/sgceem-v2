@@ -13,6 +13,8 @@ ob_start();
 $response = [
     'status' => 'ok',
     'sucessos' => 0,
+    'marcas_criadas' => 0,
+    'modelos_criados' => 0,
     'falhas' => []
 ];
 
@@ -36,8 +38,19 @@ function normalizarTipoControlePlano($tipo) {
         'odometro', 'odômetro' => 'odometro',
         'horimetro', 'horímetro' => 'horimetro',
         'tempo' => 'tempo',
-        'odometro + tempo', 'odometro_tempo', 'odometro tempo' => 'odometro_tempo',
-        'horimetro + tempo', 'horimetro_tempo', 'horimetro tempo' => 'horimetro_tempo',
+
+        'odometro + tempo',
+        'odometro_tempo',
+        'odometro tempo' => 'odometro_tempo',
+
+        'horimetro + tempo',
+        'horimetro_tempo',
+        'horimetro tempo' => 'horimetro_tempo',
+
+        'conforme necessidade',
+        'conforme_necessidade',
+        'necessidade' => 'conforme_necessidade',
+
         default => null
     };
 }
@@ -65,6 +78,63 @@ function numPlano($v) {
     $v = str_replace(',', '.', $v);
 
     return is_numeric($v) ? (float)$v : null;
+}
+
+function buscarOuCriarMarca($conexao, $marcaNome, &$response) {
+    $stmtMarca = $conexao->prepare("
+        SELECT id 
+        FROM config_marcas 
+        WHERE LOWER(TRIM(marca)) = LOWER(TRIM(?))
+        LIMIT 1
+    ");
+    $stmtMarca->bind_param("s", $marcaNome);
+    $stmtMarca->execute();
+    $resMarca = $stmtMarca->get_result();
+
+    if ($resMarca->num_rows > 0) {
+        return (int)$resMarca->fetch_assoc()['id'];
+    }
+
+    $stmtNovaMarca = $conexao->prepare("
+        INSERT INTO config_marcas (marca)
+        VALUES (?)
+    ");
+    $stmtNovaMarca->bind_param("s", $marcaNome);
+    $stmtNovaMarca->execute();
+
+    $response['marcas_criadas']++;
+
+    return (int)$stmtNovaMarca->insert_id;
+}
+
+function buscarOuCriarModelo($conexao, $id_marca, $modeloNome, &$response) {
+    $stmtModelo = $conexao->prepare("
+        SELECT id 
+        FROM config_modelos 
+        WHERE id_marca = ?
+          AND LOWER(TRIM(nome_modelo)) = LOWER(TRIM(?))
+        LIMIT 1
+    ");
+    $stmtModelo->bind_param("is", $id_marca, $modeloNome);
+    $stmtModelo->execute();
+    $resModelo = $stmtModelo->get_result();
+
+    if ($resModelo->num_rows > 0) {
+        return (int)$resModelo->fetch_assoc()['id'];
+    }
+
+    $stmtNovoModelo = $conexao->prepare("
+        INSERT INTO config_modelos (
+            id_marca,
+            nome_modelo
+        ) VALUES (?, ?)
+    ");
+    $stmtNovoModelo->bind_param("is", $id_marca, $modeloNome);
+    $stmtNovoModelo->execute();
+
+    $response['modelos_criados']++;
+
+    return (int)$stmtNovoModelo->insert_id;
 }
 
 if (!isset($_FILES['arquivo']) || $_FILES['arquivo']['error'] !== UPLOAD_ERR_OK) {
@@ -131,51 +201,13 @@ try {
         if (!$tipoControle) {
             $response['falhas'][] = [
                 'linha' => $linhaExcel,
-                'erro' => 'Tipo Controle inválido. Use: odometro, horimetro, tempo, odometro_tempo ou horimetro_tempo.'
+                'erro' => 'Tipo Controle inválido. Use: odometro, horimetro, tempo, odometro_tempo, horimetro_tempo ou conforme_necessidade.'
             ];
             continue;
         }
 
-        $stmtMarca = $conexao->prepare("
-            SELECT id 
-            FROM config_marcas 
-            WHERE LOWER(marca) = LOWER(?) 
-            LIMIT 1
-        ");
-        $stmtMarca->bind_param("s", $marcaNome);
-        $stmtMarca->execute();
-        $resMarca = $stmtMarca->get_result();
-
-        if ($resMarca->num_rows === 0) {
-            $response['falhas'][] = [
-                'linha' => $linhaExcel,
-                'erro' => "Marca '{$marcaNome}' não encontrada em config_marcas."
-            ];
-            continue;
-        }
-
-        $id_marca = (int)$resMarca->fetch_assoc()['id'];
-
-        $stmtModelo = $conexao->prepare("
-            SELECT id 
-            FROM config_modelos 
-            WHERE id_marca = ?
-              AND LOWER(nome_modelo) = LOWER(?)
-            LIMIT 1
-        ");
-        $stmtModelo->bind_param("is", $id_marca, $modeloNome);
-        $stmtModelo->execute();
-        $resModelo = $stmtModelo->get_result();
-
-        if ($resModelo->num_rows === 0) {
-            $response['falhas'][] = [
-                'linha' => $linhaExcel,
-                'erro' => "Modelo '{$modeloNome}' não encontrado para a marca '{$marcaNome}'."
-            ];
-            continue;
-        }
-
-        $id_modelo = (int)$resModelo->fetch_assoc()['id'];
+        $id_marca = buscarOuCriarMarca($conexao, $marcaNome, $response);
+        $id_modelo = buscarOuCriarModelo($conexao, $id_marca, $modeloNome, $response);
 
         $valorInicial = numPlano($valorInicial);
         $intervaloValor = numPlano($intervaloValor);
@@ -184,7 +216,13 @@ try {
         $alertaDias = is_numeric($alertaDias) ? (int)$alertaDias : null;
         $ativo = normalizarAtivoPlano($ativo);
 
-        if (in_array($tipoControle, ['odometro', 'horimetro'], true)) {
+        if ($tipoControle === 'conforme_necessidade') {
+            $valorInicial = null;
+            $intervaloValor = null;
+            $intervaloDias = null;
+            $alertaValor = null;
+            $alertaDias = null;
+        } elseif (in_array($tipoControle, ['odometro', 'horimetro'], true)) {
             if ($intervaloValor === null || $intervaloValor <= 0) {
                 $response['falhas'][] = [
                     'linha' => $linhaExcel,
@@ -195,9 +233,8 @@ try {
 
             $intervaloDias = null;
             $alertaDias = null;
-        }
 
-        if ($tipoControle === 'tempo') {
+        } elseif ($tipoControle === 'tempo') {
             if ($intervaloDias === null || $intervaloDias <= 0) {
                 $response['falhas'][] = [
                     'linha' => $linhaExcel,
@@ -209,9 +246,8 @@ try {
             $valorInicial = null;
             $intervaloValor = null;
             $alertaValor = null;
-        }
 
-        if (in_array($tipoControle, ['odometro_tempo', 'horimetro_tempo'], true)) {
+        } elseif (in_array($tipoControle, ['odometro_tempo', 'horimetro_tempo'], true)) {
             if ($intervaloValor === null || $intervaloValor <= 0 || $intervaloDias === null || $intervaloDias <= 0) {
                 $response['falhas'][] = [
                     'linha' => $linhaExcel,
@@ -275,7 +311,10 @@ try {
         $response['sucessos']++;
     }
 
-    $response['mensagem'] = "{$response['sucessos']} planos importados com sucesso." .
+    $response['mensagem'] =
+        "{$response['sucessos']} planos importados com sucesso. " .
+        "{$response['marcas_criadas']} marcas criadas. " .
+        "{$response['modelos_criados']} modelos criados." .
         (count($response['falhas']) > 0 ? " " . count($response['falhas']) . " falhas encontradas." : "");
 
     ob_end_clean();

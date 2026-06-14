@@ -95,7 +95,6 @@ function verificarPermissao($pagina_ids){
 
             $tem_acesso = true;
 
-            $permissoes['acessar'] = $permissoes['acessar'] || ($_SESSION['permissoes'][$pagina_id]['pode_acessar'] ?? false);
             $permissoes['editar']    = $permissoes['editar']    || ($_SESSION['permissoes'][$pagina_id]['pode_editar'] ?? false);
             $permissoes['deletar']   = $permissoes['deletar']   || ($_SESSION['permissoes'][$pagina_id]['pode_deletar'] ?? false);
             $permissoes['importar']  = $permissoes['importar']  || ($_SESSION['permissoes'][$pagina_id]['pode_importar'] ?? false);

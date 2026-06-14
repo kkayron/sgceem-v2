@@ -1,11 +1,23 @@
 <?php
-// ========================================
-// CONFIGURAÇÕES
-// ========================================
+session_start();
+header('Content-Type: application/json; charset=utf-8');
+
 $pagina_id = 2;
+
+include_once('../../conexao/config.php');
+include_once('../../includes/funcoes/log.php');
+
 require_once('../api/seguranca_json_cadastrar.php');
 
-//CSRF
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    echo json_encode([
+        'status' => 'erro',
+        'mensagem' => 'Método inválido'
+    ]);
+    exit;
+}
+
+// CSRF
 if (
     empty($_POST['csrf_token']) ||
     empty($_SESSION['csrf_token']) ||
@@ -13,33 +25,32 @@ if (
 ) {
     http_response_code(403);
     echo json_encode([
-        'success' => false,
-        'message' => 'Token inválido'
+        'status' => 'erro',
+        'mensagem' => 'Token inválido'
     ]);
     exit;
 }
 
-
-require_once '../../conexao/config.php';
-header('Content-Type: application/json; charset=utf-8');
-
-
-// ========================================
-// VALIDAÇÕES BÁSICAS
-// ========================================
+// Validações básicas
 if (empty($_POST['ativo'])) {
-    api_response('erro', 'Campo "Ativo" é obrigatório.');
+    echo json_encode([
+        'status' => 'erro',
+        'mensagem' => 'Campo "Ativo" é obrigatório.'
+    ]);
+    exit;
 }
 
 if (empty($_POST['batalhao'])) {
-    api_response('erro', 'Campo "Batalhão" é obrigatório.');
+    echo json_encode([
+        'status' => 'erro',
+        'mensagem' => 'Campo "Batalhão" é obrigatório.'
+    ]);
+    exit;
 }
 
-// ========================================
-// PREPARA OS DADOS
-// ========================================
+// Dados
 $batalhao = intval($_POST['batalhao']);
-$ativo = $_POST['ativo'];
+$ativo = $_POST['ativo'] ?? '';
 $tipo = $_POST['tipo'] ?? '';
 $prefixo_velho = $_POST['prefixo_velho'] ?? '';
 $prefixo_sga = $_POST['prefixo_sga'] ?? '';
@@ -65,45 +76,66 @@ $disponibilidade = $_POST['disponibilidade'] ?? '';
 $renavam = $_POST['renavam'] ?? '';
 $trem = $_POST['trem'] ?? '';
 
-// ========================================
-// UPLOAD DA IMAGEM
-// ========================================
+// Upload da foto
 $foto_capa_path = 'base.jpg';
 
 if (isset($_FILES['foto_capa']) && $_FILES['foto_capa']['error'] === UPLOAD_ERR_OK) {
 
+    $limite_tamanho = 10 * 1024 * 1024;
+
+    if ($_FILES['foto_capa']['size'] > $limite_tamanho) {
+        echo json_encode([
+            'status' => 'erro',
+            'mensagem' => 'Imagem maior que 10MB'
+        ]);
+        exit;
+    }
+
+    $ext_permitidas = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
     $ext = strtolower(pathinfo($_FILES['foto_capa']['name'], PATHINFO_EXTENSION));
 
-    $nome_arquivo = uniqid('frota_', true) . "." . $ext;
+    if (!in_array($ext, $ext_permitidas)) {
+        echo json_encode([
+            'status' => 'erro',
+            'mensagem' => 'Extensão não permitida'
+        ]);
+        exit;
+    }
 
+    $mime = mime_content_type($_FILES['foto_capa']['tmp_name']);
+    $mime_permitidos = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+
+    if (!in_array($mime, $mime_permitidos)) {
+        echo json_encode([
+            'status' => 'erro',
+            'mensagem' => 'Arquivo inválido'
+        ]);
+        exit;
+    }
+
+    $foto_capa_path = uniqid('ft_') . '.' . $ext;
     $pasta = '../../uploads/frotas/';
-    $destinoArquivo = $pasta . $nome_arquivo;
 
     if (!is_dir($pasta)) {
         mkdir($pasta, 0755, true);
     }
 
-    if (move_uploaded_file($_FILES['foto_capa']['tmp_name'], $destinoArquivo)) {
-        $foto_capa_path = $nome_arquivo;
-    } else {
-        api_response('erro', 'Falha ao salvar a imagem.');
+    if (!move_uploaded_file($_FILES['foto_capa']['tmp_name'], $pasta . $foto_capa_path)) {
+        echo json_encode([
+            'status' => 'erro',
+            'mensagem' => 'Erro ao salvar imagem'
+        ]);
+        exit;
     }
 }
 
-// ========================================
-// DADOS ADICIONAIS
-// ========================================
-$dataHoraAgora = (new DateTime('now', new DateTimeZone('America/Sao_Paulo')))
-    ->format('Y-m-d H:i:s');
+$dataHoraAgora = (new DateTime('now', new DateTimeZone('America/Sao_Paulo')))->format('Y-m-d H:i:s');
 
 $cadastrado_por = trim(
     ($_SESSION['postograd'] ?? '') . ' ' .
     ($_SESSION['nomeguerra'] ?? '')
 );
 
-// ========================================
-// INSERÇÃO NA TABELA FROTA
-// ========================================
 $sql = "INSERT INTO frota (
     batalhao, foto_capa, disponibilidade, ativo, tipo, prefixo_velho, prefixo_sga, nome_sioc,
     nmr_patrimonio, nmr_eb, chassi, acervo, marca, modelo, ano,
@@ -117,7 +149,11 @@ $sql = "INSERT INTO frota (
 $stmt = $conexao->prepare($sql);
 
 if (!$stmt) {
-    api_response('erro', 'Erro ao preparar consulta.');
+    echo json_encode([
+        'status' => 'erro',
+        'mensagem' => 'Erro ao preparar query: ' . $conexao->error
+    ]);
+    exit;
 }
 
 $stmt->bind_param(
@@ -153,46 +189,33 @@ $stmt->bind_param(
     $destino
 );
 
-$ok = $stmt->execute();
+if ($stmt->execute()) {
 
-// ========================================
-// RESPOSTA E LOG
-// ========================================
-if ($ok) {
-	
-			// 🔒 NOVO TOKEN
-$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 
-    $usuario_id = $_SESSION['usuario_id'] ?? 0;
-    $acao = "Cadastro de frota";
+    $usuarioLogado = $_SESSION['usuario_id'] ?? 0;
+    $id_frota = $stmt->insert_id;
+
     $descricao = "Frota cadastrada: $prefixo_sga ($tipo)";
-    $ip = $_SERVER['REMOTE_ADDR'] ?? '';
-    $navegador = $_SERVER['HTTP_USER_AGENT'] ?? '';
 
-    $log_sql = "INSERT INTO logs (usuario_id, acao, descricao, data_hora, ip, navegador)
-                VALUES (?, ?, ?, ?, ?, ?)";
+    if (function_exists('registrar_log')) {
+        registrar_log($conexao, $usuarioLogado, 'Cadastro de frota', $descricao, $id_frota);
+    }
 
-    $stmtLog = $conexao->prepare($log_sql);
-
-    $stmtLog->bind_param(
-        "isssss",
-        $usuario_id,
-        $acao,
-        $descricao,
-        $dataHoraAgora,
-        $ip,
-        $navegador
-    );
-
-    $stmtLog->execute();
-
-    api_response(
-        'ok',
-        $prefixo_sga . ' cadastrado com sucesso pelo usuário ' . $cadastrado_por
-    );
+    echo json_encode([
+        'status' => 'ok',
+        'mensagem' => ($prefixo_sga ?: 'Frota') . ' cadastrada com sucesso'
+    ]);
+    exit;
 
 } else {
 
-    api_response('erro', 'Erro ao cadastrar no banco.');
-
+    echo json_encode([
+        'status' => 'erro',
+        'mensagem' => 'Erro ao cadastrar frota: ' . $stmt->error
+    ]);
+    exit;
 }
+
+$stmt->close();
+?>

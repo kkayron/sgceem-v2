@@ -217,13 +217,20 @@ if (formCadastroTipo) {
         }
       })
       .then(data => {
+        if (data.csrf_token) {
+          const tokenInput = formCadastroTipo.querySelector('[name="csrf_token"]');
+          if (tokenInput) {
+            tokenInput.value = data.csrf_token;
+          }
+        }
 
         if (data.status === 'sucesso') {
           Swal.fire({
             icon: 'success',
             title: 'Sucesso!',
-            text: data.mensagem
+            text: data.mensagem || 'Tipo cadastrado com sucesso!'
           }).then(() => {
+            formCadastroTipo.reset();
             carregarPagina('includes/fin_tipos_vtr/listagem.php');
             fecharModalAberto();
           });
@@ -231,16 +238,15 @@ if (formCadastroTipo) {
           Swal.fire({
             icon: 'error',
             title: 'Erro!',
-            text: data.mensagem
+            text: data.mensagem || 'Erro ao cadastrar o tipo.'
           });
         }
-
       })
       .catch(err => {
         Swal.fire({
           icon: 'error',
           title: 'Erro',
-          text: err.message
+          text: err.message || 'Erro inesperado ao cadastrar.'
         });
       });
   });

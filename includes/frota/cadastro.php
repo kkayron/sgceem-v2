@@ -3,7 +3,7 @@ header('Content-Type: text/html; charset=utf-8');
 session_start();
 include_once('../../conexao/config.php');
 
-require_once '../api/seguranca_cadastrar.php';
+require_once '../api/seguranca.php';
 
 $permissoes = verificarPermissao(2);
 
@@ -359,14 +359,15 @@ $sql = "
             <textarea name="obs_encmat" rows="2" class="form-control"></textarea>
           </div>
 
-          <?php if ($pode_cadastrar): ?>
           <div class="col-12 text-end mt-3">
            <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
+			      <?php if ($pode_cadastrar): ?>
             <button type="submit" class="btn btn-success px-4">
               <i class="fas fa-save me-1"></i> Cadastrar Viatura/Equipamento
             </button>
-          </div>
+			  
           <?php endif; ?>
+          </div>
         </form>
       </div>
     </div>

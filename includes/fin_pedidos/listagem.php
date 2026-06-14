@@ -1253,13 +1253,17 @@ $placa_filtro   = $_GET['placa'] ?? '';
                 $destinos = [];
                 if (!empty($batalhoesPermitidos)) {
                     $placeholders = implode(',', array_fill(0, count($batalhoesPermitidos), '?'));
-                    $sqlDestinos = "
-                        SELECT cd.destino, om.nome AS nome_batalhao
-                        FROM config_destinos cd
-                        JOIN organizacoes_militares om ON cd.batalhao = om.id
-                        WHERE cd.batalhao IN ($placeholders)
-                        ORDER BY cd.destino ASC
-                    ";
+                  $sqlDestinos = "
+                  SELECT
+                  cd.id,
+                  cd.destino,
+                  cd.batalhao,
+                  om.nome AS nome_batalhao
+                  FROM config_destinos cd
+                  JOIN organizacoes_militares om ON cd.batalhao = om.id
+                  WHERE cd.batalhao IN ($placeholders)
+                  ORDER BY cd.destino ASC
+";
                     $stmtDestinos = $conexao->prepare($sqlDestinos);
                     $tipos = str_repeat('i', count($batalhoesPermitidos));
                     $stmtDestinos->bind_param($tipos, ...$batalhoesPermitidos);
@@ -1274,13 +1278,20 @@ $placa_filtro   = $_GET['placa'] ?? '';
                   <div class="col-md-4">
   <label class="form-label">Local do pedido</label>
   <select class="form-select" name="local_pedido" required>
-    <option value="" disabled selected>Selecione o local do pedido</option>
-                    <?php foreach ($destinos as $dest): ?>
-                      <option value="<?= htmlspecialchars($dest['destino']) ?>">
-                        <?= htmlspecialchars($dest['destino'] . ' - ' . $dest['nome_batalhao']) ?>
-                      </option>
-                    <?php endforeach; ?>
-                  </select>
+    <option value="" disabled selected>
+        Selecione o local do pedido
+    </option>
+
+    <?php foreach ($destinos as $dest): ?>
+
+        <option value="<?= $dest['id'] ?>">
+            <?= htmlspecialchars(
+                $dest['destino'] . ' - ' . $dest['nome_batalhao']
+            ) ?>
+        </option>
+
+    <?php endforeach; ?>
+</select>
 </div>
            <div class="col-md-2">
   <label class="form-label">Desconto no Empenho (%)</label>

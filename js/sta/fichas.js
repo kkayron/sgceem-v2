@@ -3,6 +3,68 @@
 // LISTAGEM DAS FICHAS DE VIATURAS
 window.inicializarFichas = function () {
 	
+	// Importar Fichas STA
+const formImportarSTA = document.getElementById('formImportarSTA');
+
+if (formImportarSTA) {
+  formImportarSTA.addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    const formData = new FormData(formImportarSTA);
+
+    fetch('includes/sta_fichas/importar_sta.php', {
+      method: 'POST',
+      body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.status === 'ok') {
+        let mensagem = data.mensagem;
+
+        if (data.falhas && data.falhas.length > 0) {
+          mensagem += "\n\nFalhas detalhadas:\n" + data.falhas.map(f =>
+            `Linha ${f.linha}: ${f.erro}`
+          ).join("\n");
+        }
+
+        swal({
+          title: "Importação concluída!",
+          text: mensagem,
+          icon: "success",
+          button: { text: "OK", className: "btn btn-success" }
+        }).then(() => {
+          carregarPagina('includes/sta_fichas/listagem.php');
+          fecharModalAberto();
+        });
+
+      } else {
+        let erroMsg = data.mensagem || "Verifique o arquivo e tente novamente.";
+
+        if (data.falhas && data.falhas.length > 0) {
+          erroMsg += "\n\nFalhas detalhadas:\n" + data.falhas.map(f =>
+            `Linha ${f.linha}: ${f.erro}`
+          ).join("\n");
+        }
+
+        swal({
+          title: "Erro na importação!",
+          text: erroMsg,
+          icon: "error",
+          button: { text: "Fechar", className: "btn btn-danger" }
+        });
+      }
+    })
+    .catch(err => {
+      swal({
+        title: "Erro!",
+        text: "Erro de rede: " + err.message,
+        icon: "error",
+        button: { text: "Fechar", className: "btn btn-danger" }
+      });
+    });
+  });
+}
+	
 	window.abrirModalAutorizacaoFicha = function(botao) {
   const id = botao.getAttribute('data-id');
   const autorizado = botao.getAttribute('data-autorizado') || 'não';
@@ -332,116 +394,271 @@ document.querySelectorAll('.btn-deletar-ficha').forEach(botao => {
 });
 
     
-// Cadastrar ficha
+// ========================================
+// CADASTRAR FICHA STA
+// ========================================
+
 const formFicha = document.getElementById('form-ficha-sta');
 
 if (formFicha) {
-  formFicha.addEventListener('submit', function (e) {
-    e.preventDefault();
-    const formData = new FormData(formFicha);
 
-    // ✅ Campos opcionais com valores padrão
-    const camposOpcionais = [
-      'data_saida', 'hora_saida', 'odo_saida',
-      'data_retorno', 'hora_retorno', 'odo_retorno',
-      'observacoes_pos_emprego'
-    ];
-    camposOpcionais.forEach(campo => {
-      let valor = formData.get(campo);
-      if (!valor || valor === "") {
-        if (campo.includes('data')) valor = '0001-01-01';
-        else if (campo.includes('hora')) valor = '00:00';
-        else if (campo.includes('odo')) valor = '0';
-        else valor = '';
-        formData.set(campo, valor);
-      }
-    });
+    formFicha.addEventListener('submit', function (e) {
 
-    function enviarFicha(force = false) {
-      if (force) formData.set('force', '1');
+        e.preventDefault();
 
-      fetch('includes/sta_fichas/salvar_ficha.php', {
-        method: 'POST',
-        body: formData
-      })
-      .then(res => res.json())
-      .then(data => {
-        if (data.status === 'sucesso') {
-          swal("Sucesso!", data.mensagem || "Ficha cadastrada com sucesso!", "success")
-            .then(() => {
-              carregarPagina('includes/sta_fichas/listagem.php');
-              fecharModalAberto(); // fecha o modal
-            });
-        } else if (data.status === 'confirmar') {
-          swal({
-            title: "Conflito de Ficha!",
-            text: data.mensagem || "Já existe uma ficha aberta neste intervalo. Deseja continuar mesmo assim?",
-            icon: "warning",
-            buttons: ["Cancelar", "Sim, cadastrar"],
-            dangerMode: true,
-          }).then((confirmado) => {
-            if (confirmado) {
-              enviarFicha(true); // reenviar com force
-            }
-          });
-        } else {
-          swal("Erro!", data.mensagem || "Erro ao cadastrar a ficha.", "error");
+        const btnSubmit = formFicha.querySelector('button[type="submit"]');
+
+        // Evita duplo clique
+        if (btnSubmit.disabled) {
+            return;
         }
-      })
-      .catch(err => {
-        swal("Erro!", "Erro de rede ou JSON inválido: " + err.message, "error");
-      });
+
+        btnSubmit.disabled = true;
+
+        const textoOriginal = btnSubmit.innerHTML;
+
+        btnSubmit.innerHTML = `
+            <span class="spinner-border spinner-border-sm me-2"></span>
+            Cadastrando...
+        `;
+
+        const formData = new FormData(formFicha);
+
+        // ========================================
+        // CAMPOS OPCIONAIS
+        // ========================================
+
+        const camposOpcionais = [
+            'data_saida',
+            'hora_saida',
+            'odo_saida',
+            'data_retorno',
+            'hora_retorno',
+            'odo_retorno',
+            'observacoes_pos_emprego'
+        ];
+
+        camposOpcionais.forEach(campo => {
+
+            let valor = formData.get(campo);
+
+            if (!valor || valor === '') {
+
+                if (campo.includes('data')) {
+                    valor = '0001-01-01';
+                }
+                else if (campo.includes('hora')) {
+                    valor = '00:00';
+                }
+                else if (campo.includes('odo')) {
+                    valor = '0';
+                }
+                else {
+                    valor = '';
+                }
+
+                formData.set(campo, valor);
+            }
+        });
+
+        function restaurarBotao() {
+            btnSubmit.disabled = false;
+            btnSubmit.innerHTML = textoOriginal;
+        }
+
+        function enviarFicha(force = false) {
+
+            if (force) {
+                formData.set('force', '1');
+            }
+
+            fetch('includes/sta_fichas/salvar_ficha.php', {
+                method: 'POST',
+                body: formData
+            })
+
+            .then(res => res.text())
+
+            .then(text => {
+
+                console.log('📌 Resposta bruta salvar_ficha.php:', text);
+
+                let data;
+
+                try {
+
+                    data = JSON.parse(text);
+
+                } catch (err) {
+
+                    restaurarBotao();
+
+                    swal({
+                        title: "Erro!",
+                        text: "Resposta inválida do servidor. Verifique o Console (F12).",
+                        icon: "error",
+                        button: {
+                            text: "Fechar",
+                            className: "btn btn-danger"
+                        }
+                    });
+
+                    return;
+                }
+
+                // ========================================
+                // SUCESSO
+                // ========================================
+
+                if (data.status === 'sucesso') {
+
+                    swal({
+                        title: "Sucesso!",
+                        text: data.mensagem || "Ficha cadastrada com sucesso!",
+                        icon: "success",
+                        button: {
+                            text: "OK",
+                            className: "btn btn-success"
+                        }
+                    })
+
+                    .then(() => {
+
+                        carregarPagina('includes/sta_fichas/listagem.php');
+
+                        fecharModalAberto();
+                    });
+
+                    return;
+                }
+
+                // ========================================
+                // CONFLITO
+                // ========================================
+
+                if (data.status === 'confirmar') {
+
+                    restaurarBotao();
+
+                    swal({
+                        title: "Conflito de Ficha",
+                        text: data.mensagem || "Já existe uma ficha aberta neste período. Deseja continuar?",
+                        icon: "warning",
+                        buttons: ["Cancelar", "Continuar"],
+                        dangerMode: true
+                    })
+
+                    .then((confirmado) => {
+
+                        if (confirmado) {
+
+                            btnSubmit.disabled = true;
+
+                            btnSubmit.innerHTML = `
+                                <span class="spinner-border spinner-border-sm me-2"></span>
+                                Cadastrando...
+                            `;
+
+                            enviarFicha(true);
+                        }
+                    });
+
+                    return;
+                }
+
+                // ========================================
+                // ERRO
+                // ========================================
+
+                restaurarBotao();
+
+                swal({
+                    title: "Erro!",
+                    text: data.mensagem || "Erro ao cadastrar ficha.",
+                    icon: "error",
+                    button: {
+                        text: "Fechar",
+                        className: "btn btn-danger"
+                    }
+                });
+
+            })
+
+            .catch(err => {
+
+                restaurarBotao();
+
+                swal({
+                    title: "Erro!",
+                    text: "Erro de rede: " + err.message,
+                    icon: "error",
+                    button: {
+                        text: "Fechar",
+                        className: "btn btn-danger"
+                    }
+                });
+
+            });
+        }
+
+        enviarFicha();
+
+    });
+}
+    
+    
+     // FILTROS DA PÁGINA DE FICHAS STA
+  const formFICHA = document.getElementById('filtroFichaForm');
+
+  function atualizarListaFICHAS(extraParams = {}) {
+    const formAtual = document.getElementById('filtroFichaForm');
+    if (!formAtual) return;
+
+    const formData = new FormData(formAtual);
+    const params = new URLSearchParams(formData);
+
+    for (const key in extraParams) {
+      params.set(key, extraParams[key]);
     }
 
-    enviarFicha(); // chamada inicial sem force
-  });
-}
-
-    
-    
-    // FILTROS DA PÁGINA DE FICHAS STA
-const formFICHA = document.getElementById('filtroFichaForm');
-
-function atualizarListaFICHAS(extraParams = {}) {
-  if (!formFICHA) return;
-
-  const formData = new FormData(formFICHA);
-  const params = new URLSearchParams(formData);
-
-  for (const key in extraParams) {
-    params.set(key, extraParams[key]);
+    const url = `includes/sta_fichas/listagem.php?${params.toString()}`;
+    carregarPagina(url);
   }
 
-  const url = `includes/sta_fichas/listagem.php?${params.toString()}`;
-  carregarPagina(url);
-}
+  if (formFICHA) {
+    formFICHA.addEventListener('submit', function (e) {
+      e.preventDefault();
+      atualizarListaFICHAS({ pagina: 1 });
+    });
+  }
 
-if (formFICHA) {
-  formFICHA.addEventListener('submit', function (e) {
-    e.preventDefault();
-    atualizarListaFICHAS({ pagina: 1 });
-  });
-}
+  const limiteSelectFICHAS = document.getElementById('limiteFICHAS');
 
-const limiteSelectFICHAS = document.getElementById('limiteFICHAS');
-if (limiteSelectFICHAS) {
-  limiteSelectFICHAS.addEventListener('change', function () {
-    atualizarListaFICHAS({ pagina: 1, limite: this.value });
-  });
-}
+  if (limiteSelectFICHAS) {
+    limiteSelectFICHAS.addEventListener('change', function () {
+      atualizarListaFICHAS({
+        pagina: 1,
+        limite: this.value
+      });
+    });
+  }
 
-const btnLimparFiltrosFichas = document.getElementById('btnLimparFiltrosFichas');
-if (btnLimparFiltrosFichas && formFICHA) {
-  btnLimparFiltrosFichas.addEventListener('click', function (e) {
-    e.preventDefault();
-    formFICHA.reset();
+  const btnLimparFiltrosFichas = document.getElementById('btnLimparFiltrosFichas');
 
-    const limiteAtual = document.getElementById('limiteFICHAS')?.value || 10;
-    const url = `includes/sta_fichas/listagem.php?pagina=1&limite=${limiteAtual}`;
-    carregarPagina(url);
-  });
-}
+  if (btnLimparFiltrosFichas) {
+    btnLimparFiltrosFichas.addEventListener('click', function (e) {
+      e.preventDefault();
 
+      const formAtual = document.getElementById('filtroFichaForm');
+      if (formAtual) {
+        formAtual.reset();
+      }
+
+      const limiteAtual = document.getElementById('limiteFICHAS')?.value || 10;
+
+      carregarPagina(`includes/sta_fichas/listagem.php?pagina=1&limite=${limiteAtual}`);
+    });
+  }
 window.editarFICHA = function (id) {
   const form = document.getElementById('form-editar-ficha');
   if (!form) return;

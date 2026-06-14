@@ -67,40 +67,71 @@ $offset = ($pagina - 1) * $limite;
 $campos = [
     'f.id' => 'id',
     'fr.id' => 'viatura',
-    'subunidade' => 'subunidade',
-    'motorista' => 'motorista',
-    'solicitante' => 'solicitante',
-    'status' => 'status',
+    'f.subunidade' => 'subunidade',
+    'f.motorista' => 'motorista',
     'f.solicitante' => 'solicitante',
-    'data_abertura >=' => 'data_ini',
-    'data_abertura <=' => 'data_fim',
+    'f.status' => 'status',
+    'f.data_abertura >=' => 'data_ini',
+    'f.data_abertura <=' => 'data_fim',
     'f.batalhao' => 'batalhao'
 ];
 
 foreach ($campos as $coluna => $parametro) {
-    if (!empty($_GET[$parametro])) {
-        $valor = $_GET[$parametro];
-        if (str_contains($coluna, '>=')) {
-            $filtros[] = str_replace(' >=', ' >=', $coluna) . ' ?';
-            $params[] = $valor;
-            $tipos .= 's';
-        } elseif (str_contains($coluna, '<=')) {
-            $filtros[] = str_replace(' <=', ' <=', $coluna) . ' ?';
-            $params[] = $valor;
-            $tipos .= 's';
-        } elseif ($parametro === 'id' || $parametro === 'f.batalhao') {
-            $filtros[] = "$coluna = ?";
-            $params[] = (int)$valor;
-            $tipos .= 'i';
-            } elseif ($parametro === 'viatura' || $parametro === 'fr.id') {
-            $filtros[] = "$coluna = ?";
-            $params[] = (int)$valor;
-            $tipos .= 'i';
-        } else {
-            $filtros[] = "$coluna LIKE ?";
-            $params[] = '%' . $valor . '%';
-            $tipos .= 's';
-        }
+
+    if (!isset($_GET[$parametro]) || $_GET[$parametro] === '') {
+        continue;
+    }
+
+    $valor = trim($_GET[$parametro]);
+
+    // Datas
+    if (str_contains($coluna, '>=')) {
+
+        $filtros[] = "$coluna ?";
+        $params[] = $valor;
+        $tipos .= 's';
+
+    } elseif (str_contains($coluna, '<=')) {
+
+        $filtros[] = "$coluna ?";
+        $params[] = $valor;
+        $tipos .= 's';
+
+    // Campos numéricos
+    } elseif (
+        $parametro === 'id' ||
+        $parametro === 'batalhao'
+    ) {
+
+        $filtros[] = "$coluna = ?";
+        $params[] = (int)$valor;
+        $tipos .= 'i';
+
+    // Viatura
+    } elseif ($parametro === 'viatura') {
+
+        $filtros[] = "(
+            fr.prefixo_sga LIKE ?
+            OR fr.modelo LIKE ?
+            OR fr.placa LIKE ?
+            OR fr.id = ?
+        )";
+
+        $like = "%{$valor}%";
+
+        $params[] = $like;
+        $params[] = $like;
+        $params[] = $like;
+        $params[] = (int)$valor;
+
+        $tipos .= 'sssi';
+
+    // Texto
+    } else {
+
+        $filtros[] = "$coluna LIKE ?";
+        $params[] = "%{$valor}%";
+        $tipos .= 's';
     }
 }
 
@@ -248,7 +279,9 @@ $queryString = http_build_query($paramsGET);
           <i class="fa fa-user-plus me-1"></i> Abrir Ficha de Vtr/Eqp
         </button>
          <!-- Botão para abrir modal -->
-
+<button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalImportarSTA">
+  Importar Fichas
+</button>
       </div>
     </div>
 
@@ -336,32 +369,37 @@ $batalhao_filtro = $_GET['batalhao'] ?? '';
 </div>
           <div class="col-md-2">
             <label class="form-label fw-semibold">Nmr da Ficha</label>
-            <input type="text" class="form-control" name="id">
+            <input type="text" class="form-control" name="id"
+       value="<?= htmlspecialchars($_GET['id'] ?? '') ?>">
           </div>
           <div class="col-md-2">
             <label class="form-label fw-semibold">Viatura</label>
-            <input type="text" class="form-control" name="viatura">
+            <input type="text" class="form-control" name="viatura"
+       value="<?= htmlspecialchars($_GET['viatura'] ?? '') ?>">
           </div>
           <div class="col-md-3">
             <label class="form-label fw-semibold">Solicitante</label>
-            <input type="text" class="form-control" name="solicitante">
+          <input type="text" class="form-control" name="solicitante"
+       value="<?= htmlspecialchars($_GET['solicitante'] ?? '') ?>">
           </div>
           <div class="col-md-3">
             <label class="form-label fw-semibold">Subunidade</label>
-            <input type="text" class="form-control" name="subunidade">
+         <input type="text" class="form-control" name="subunidade"
+       value="<?= htmlspecialchars($_GET['subunidade'] ?? '') ?>">
           </div>
           <div class="col-md-2">
             <label class="form-label fw-semibold">Status</label>
-            <select name="status" class="form-select">
-              <option value="">Todos</option>
-              <option value="Aberta">Aberta</option>
-                <option value="Não autorizada">Não autorizada</option>
-              <option value="Encerrada">Encerrada</option>
-            </select>
+<select name="status" class="form-select">
+  <option value="">Todos</option>
+  <option value="Aberta" <?= ($_GET['status'] ?? '') === 'Aberta' ? 'selected' : '' ?>>Aberta</option>
+  <option value="Não autorizada" <?= ($_GET['status'] ?? '') === 'Não autorizada' ? 'selected' : '' ?>>Não autorizada</option>
+  <option value="Encerrada" <?= ($_GET['status'] ?? '') === 'Encerrada' ? 'selected' : '' ?>>Encerrada</option>
+</select>
           </div>
           <div class="col-md-2">
             <label class="form-label fw-semibold">Data Abertura</label>
-            <input type="date" class="form-control" name="data_abertura">
+            <input type="date" class="form-control" name="data_abertura"
+       value="<?= htmlspecialchars($_GET['data_abertura'] ?? '') ?>">
           </div>
 
           <div class="col-12 d-flex justify-content-between mt-2">
@@ -1016,7 +1054,9 @@ while ($batPermitido = $sqlPermitidos->fetch_assoc()) {
         </div>
         <div class="modal-footer justify-content-between">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-          <button type="submit" class="btn btn-success">Cadastrar Ficha</button>
+          <button type="submit" id="btnCadastrarFicha" class="btn btn-success">
+    Cadastrar Ficha
+</button>
         </div>
       </form>
     </div>
@@ -1442,6 +1482,70 @@ while ($batPermitido = $sqlPermitidos->fetch_assoc()) {
           <button type="submit" class="btn btn-success">
             <i class="fas fa-save me-1"></i> Salvar Autorização
           </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+	  
+	  <!-- Modal de Importação STA -->
+<div class="modal fade" id="modalImportarSTA" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="formImportarSTA" method="POST" enctype="multipart/form-data">
+        <div class="modal-header">
+          <h5 class="modal-title">Importar Planilha de Fichas STA</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+
+        <div class="modal-body">
+          <?php
+          $id_om_usuario = $_SESSION['usuario']['batalhao'] ?? 0;
+
+          $sqlNivel = "SELECT nivel FROM organizacoes_militares WHERE id = $id_om_usuario";
+          $resNivel = $conexao->query($sqlNivel);
+          $nivelUsuario = $resNivel->fetch_assoc()['nivel'] ?? 0;
+
+          if ($nivelUsuario == 1) {
+              $sqlBatalhoes = "SELECT id, nome, abreviatura FROM organizacoes_militares ORDER BY nome";
+          } else {
+              $sqlBatalhoes = "
+                  SELECT om.id, om.nome, om.abreviatura
+                  FROM organizacoes_militares om
+                  WHERE om.id = $id_om_usuario
+                  OR om.id IN (
+                      SELECT id_om_menor 
+                      FROM organizacoes_militares_sub 
+                      WHERE id_om_maior = $id_om_usuario
+                  )
+                  ORDER BY om.nome
+              ";
+          }
+
+          $resBatalhoes = $conexao->query($sqlBatalhoes);
+          ?>
+
+          <label class="form-label">Selecione o Batalhão das Fichas</label>
+          <select name="batalhao" id="batalhao_importacao_sta" class="form-select mb-3" required>
+            <option value="">Selecione...</option>
+            <?php while ($bat = $resBatalhoes->fetch_assoc()): ?>
+              <option value="<?= $bat['id'] ?>">
+                <?= htmlspecialchars($bat['abreviatura'] . ' - ' . $bat['nome']) ?>
+              </option>
+            <?php endwhile; ?>
+          </select>
+
+          <label class="form-label">Selecione a planilha (.xlsx)</label>
+          <input type="file" name="arquivo" accept=".xlsx" class="form-control mb-3" required>
+
+          <a href="includes/sta/planilha_modelo_sta.xlsx" class="btn btn-link p-0">
+            📥 Baixar modelo de planilha
+          </a>
+        </div>
+
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary">Importar</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
         </div>
       </form>
     </div>

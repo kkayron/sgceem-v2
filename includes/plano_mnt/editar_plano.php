@@ -61,7 +61,8 @@ try {
         'horimetro',
         'tempo',
         'odometro_tempo',
-        'horimetro_tempo'
+        'horimetro_tempo',
+        'conforme_necessidade'
     ];
 
     if (!in_array($tipo_controle, $tiposPermitidos, true)) {
@@ -79,7 +80,16 @@ try {
     $alerta_antes_valor = is_numeric($alerta_antes_valor) ? (float)$alerta_antes_valor : null;
     $alerta_antes_dias = is_numeric($alerta_antes_dias) ? (int)$alerta_antes_dias : null;
 
-    if (in_array($tipo_controle, ['odometro', 'horimetro'], true)) {
+    if ($tipo_controle === 'conforme_necessidade') {
+
+        $valor_inicial = null;
+        $intervalo_valor = null;
+        $intervalo_dias = null;
+        $alerta_antes_valor = null;
+        $alerta_antes_dias = null;
+
+    } elseif (in_array($tipo_controle, ['odometro', 'horimetro'], true)) {
+
         if ($intervalo_valor === null || $intervalo_valor <= 0) {
             ob_clean();
             echo json_encode([
@@ -91,9 +101,9 @@ try {
 
         $intervalo_dias = null;
         $alerta_antes_dias = null;
-    }
 
-    if ($tipo_controle === 'tempo') {
+    } elseif ($tipo_controle === 'tempo') {
+
         if ($intervalo_dias === null || $intervalo_dias <= 0) {
             ob_clean();
             echo json_encode([
@@ -106,9 +116,9 @@ try {
         $valor_inicial = null;
         $intervalo_valor = null;
         $alerta_antes_valor = null;
-    }
 
-    if (in_array($tipo_controle, ['odometro_tempo', 'horimetro_tempo'], true)) {
+    } elseif (in_array($tipo_controle, ['odometro_tempo', 'horimetro_tempo'], true)) {
+
         if ($intervalo_valor === null || $intervalo_valor <= 0 || $intervalo_dias === null || $intervalo_dias <= 0) {
             ob_clean();
             echo json_encode([
@@ -119,7 +129,6 @@ try {
         }
     }
 
-    // Verifica se o plano existe
     $stmtExiste = $conexao->prepare("
         SELECT id
         FROM mnt_planos
@@ -139,7 +148,6 @@ try {
         exit;
     }
 
-    // Confere se o modelo pertence à marca
     $stmtModelo = $conexao->prepare("
         SELECT id
         FROM config_modelos
@@ -160,7 +168,6 @@ try {
         exit;
     }
 
-    // Evita duplicidade ignorando o próprio registro
     $stmtDup = $conexao->prepare("
         SELECT id
         FROM mnt_planos

@@ -221,12 +221,25 @@ function labelTipoControle($tipo) {
         'tempo' => 'Tempo',
         'odometro_tempo' => 'Odômetro + Tempo',
         'horimetro_tempo' => 'Horímetro + Tempo',
+		'conforme_necessidade' => 'Conforme Necessidade',
         default => '—'
     };
 }
 
 function calcularStatusMnt($row) {
     $tipo = $row['tipo_controle'];
+	
+	if ($tipo === 'conforme_necessidade') {
+    return [
+        'status' => 'Conforme necessidade',
+        'classe' => 'info',
+        'mensagem' => 'Executar somente quando houver necessidade operacional',
+        'proxima_valor' => null,
+        'falta_valor' => null,
+        'proxima_data' => null,
+        'falta_dias' => null
+    ];
+}
 
     $usaValor = in_array($tipo, ['odometro', 'horimetro', 'odometro_tempo', 'horimetro_tempo']);
     $usaTempo = in_array($tipo, ['tempo', 'odometro_tempo', 'horimetro_tempo']);
@@ -502,7 +515,7 @@ $queryString = http_build_query($paramsGET);
                     <label class="form-label fw-semibold">Status</label>
                     <select name="status_alerta" class="form-select">
                       <option value="">Todos</option>
-                      <?php foreach (['Vencida', 'Próxima', 'Em dia', 'Sem histórico', 'Sem medição'] as $st): ?>
+                      <?php foreach (['Vencida', 'Próxima', 'Em dia', 'Conforme necessidade', 'Sem histórico', 'Sem medição'] as $st): ?>
                         <option value="<?= $st ?>" <?= ($status_alerta === $st) ? 'selected' : '' ?>>
                           <?= $st ?>
                         </option>
@@ -519,6 +532,7 @@ $queryString = http_build_query($paramsGET);
                       <option value="tempo" <?= $tipo_controle === 'tempo' ? 'selected' : '' ?>>Tempo</option>
                       <option value="odometro_tempo" <?= $tipo_controle === 'odometro_tempo' ? 'selected' : '' ?>>Odômetro + Tempo</option>
                       <option value="horimetro_tempo" <?= $tipo_controle === 'horimetro_tempo' ? 'selected' : '' ?>>Horímetro + Tempo</option>
+						<option value="conforme_necessidade" <?= $tipo_controle === 'conforme_necessidade' ? 'selected' : '' ?>>Conforme Necessidade</option>
                     </select>
                   </div>
 
@@ -562,14 +576,16 @@ $totalVencidas = 0;
 $totalProximas = 0;
 $totalEmDia = 0;
 $totalSemHistorico = 0;
+$totalNecessidade = 0;
 
 foreach ($linhas as $l) {
     $st = $l['calc']['status'] ?? '';
 
     if ($st === 'Vencida') $totalVencidas++;
     elseif ($st === 'Próxima') $totalProximas++;
-    elseif ($st === 'Em dia') $totalEmDia++;
-    else $totalSemHistorico++;
+elseif ($st === 'Em dia') $totalEmDia++;
+elseif ($st === 'Conforme necessidade') $totalNecessidade++;
+else $totalSemHistorico++;
 }
 ?>
 
@@ -589,6 +605,11 @@ foreach ($linhas as $l) {
     <strong><?= $totalEmDia ?></strong>
   </div>
 
+	<div class="resumo-card resumo-info">
+  <small>Conforme necessidade</small>
+  <strong><?= $totalNecessidade ?></strong>
+</div>
+	
   <div class="resumo-card resumo-secondary">
     <small>Sem histórico/medição</small>
     <strong><?= $totalSemHistorico ?></strong>
@@ -612,6 +633,7 @@ foreach ($linhas as $l) {
         'Vencida' => 'controle-mnt-vencida',
         'Próxima' => 'controle-mnt-proxima',
         'Sem histórico', 'Sem medição' => 'controle-mnt-sem-historico',
+		'Conforme necessidade' => 'controle-mnt-necessidade',
         default => 'controle-mnt-ok'
     };
 
@@ -619,6 +641,7 @@ foreach ($linhas as $l) {
         'Vencida' => 'fas fa-exclamation-triangle',
         'Próxima' => 'fas fa-clock',
         'Em dia' => 'fas fa-check-circle',
+		'Conforme necessidade' => 'fas fa-info-circle',
         default => 'fas fa-info-circle'
     };
 
@@ -641,6 +664,7 @@ foreach ($linhas as $l) {
         'Vencida' => 'bg-danger',
         'Próxima' => 'bg-warning',
         'Em dia' => 'bg-success',
+		'Conforme necessidade' => 'bg-info',
         default => 'bg-secondary'
     };
 
@@ -802,7 +826,7 @@ foreach ($linhas as $l) {
 <style>
 	.controle-mnt-resumo {
   display: grid;
-  grid-template-columns: repeat(4, minmax(140px, 1fr));
+  grid-template-columns: repeat(5, minmax(140px, 1fr));
   gap: .75rem;
 }
 
@@ -1077,6 +1101,15 @@ foreach ($linhas as $l) {
   .controle-mnt-actions {
     grid-template-columns: 1fr;
   }
+}
+	
+.resumo-info {
+  border-left: 5px solid #0dcaf0;
+}
+
+.controle-mnt-necessidade {
+  border-left: 6px solid #0dcaf0;
+  background: #eef8ff;
 }
 </style>
 

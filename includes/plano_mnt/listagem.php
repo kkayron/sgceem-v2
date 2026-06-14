@@ -143,7 +143,7 @@ while ($mo = $resModelos->fetch_assoc()) {
 // ============================
 // PAGINAÇÃO
 // ============================
-function renderPaginacaoPlanosMnt($pagina, $totalPaginas, $limite, $queryString, $arquivo = 'includes/manutencao_planos/listagem.php') {
+function renderPaginacaoPlanosMnt($pagina, $totalPaginas, $limite, $queryString, $arquivo = 'includes/plano_mnt/listagem.php') {
     if ($totalPaginas <= 1) return '';
 
     $qs = trim($queryString);
@@ -696,6 +696,7 @@ $queryString = http_build_query($paramsGET);
                 <option value="tempo">Tempo</option>
                 <option value="odometro_tempo">Odômetro + Tempo</option>
                 <option value="horimetro_tempo">Horímetro + Tempo</option>
+                <option value="conforme_necessidade">Conforme Necessidade</option>
               </select>
             </div>
 
@@ -820,6 +821,7 @@ $queryString = http_build_query($paramsGET);
                 <option value="tempo">Tempo</option>
                 <option value="odometro_tempo">Odômetro + Tempo</option>
                 <option value="horimetro_tempo">Horímetro + Tempo</option>
+                <option value="conforme_necessidade">Conforme Necessidade</option>
               </select>
             </div>
 

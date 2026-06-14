@@ -1,11 +1,32 @@
 // JavaScript Document
 function inicializarCadastroVtrEqp() {// FORM: Cadastrar frota
- const formCadastrarFrota = document.getElementById('formCadastrarFrota');
+const formCadastrarFrota = document.getElementById('formCadastrarFrota');
+
+function alertaSweet(tipo, titulo, texto) {
+  if (typeof Swal !== 'undefined') {
+    return Swal.fire({
+      icon: tipo,
+      title: titulo,
+      text: texto,
+      confirmButtonText: 'OK'
+    });
+  }
+
+  if (typeof swal !== 'undefined') {
+    return swal({
+      title: titulo,
+      text: texto,
+      icon: tipo,
+      button: 'OK'
+    });
+  }
+
+  alert(titulo + '\n' + texto);
+  return Promise.resolve();
+}
 
 if (formCadastrarFrota) {
-
   formCadastrarFrota.addEventListener('submit', function (e) {
-
     e.preventDefault();
 
     const formData = new FormData(formCadastrarFrota);
@@ -17,61 +38,46 @@ if (formCadastrarFrota) {
         'X-Requested-With': 'XMLHttpRequest'
       }
     })
-
-    .then(res => res.json())
-
-    .then(data => {
-
-      if (data.status === 'ok') {
-
-        swal({
-          title: "Sucesso!",
-          text: data.mensagem || "Frota cadastrada com sucesso!",
-          icon: "success",
-          button: {
-            text: "OK",
-            className: "btn btn-success"
-          }
-
-        }).then(() => {
-
-          carregarPagina('includes/frota/listagem.php');
-          fecharModalAberto();
-
-        });
-
-      } else {
-
-        swal({
-          title: "Erro!",
-          text: data.mensagem || "Erro ao cadastrar frota.",
-          icon: "error",
-          button: {
-            text: "Fechar",
-            className: "btn btn-danger"
-          }
-        });
-
+    .then(res => res.text())
+    .then(text => {
+      try {
+        return JSON.parse(text);
+      } catch (e) {
+        console.error('Retorno inválido do PHP:', text);
+        throw new Error('O PHP não retornou JSON válido.');
       }
-
     })
+    .then(data => {
+      const status = data.status || data.success;
+      const mensagem = data.mensagem || data.message || '';
 
+      if (status === 'ok' || status === true || status === 'sucesso') {
+        alertaSweet(
+          'success',
+          'Sucesso!',
+          mensagem || 'Frota cadastrada com sucesso!'
+        ).then(() => {
+          fecharModalAberto();
+          carregarPagina('includes/frota/listagem.php');
+        });
+      } else {
+        alertaSweet(
+          'error',
+          'Erro!',
+          mensagem || 'Erro ao cadastrar frota.'
+        );
+      }
+    })
     .catch(err => {
+      console.error(err);
 
-      swal({
-        title: "Erro!",
-        text: "Erro de rede: " + err.message,
-        icon: "error",
-        button: {
-          text: "Fechar",
-          className: "btn btn-danger"
-        }
-      });
-
+      alertaSweet(
+        'error',
+        'Erro!',
+        'Erro ao processar cadastro: ' + err.message
+      );
     });
-
   });
-
 }
     
     // Importar frota

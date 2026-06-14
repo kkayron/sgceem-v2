@@ -27,18 +27,78 @@ function buscarResponsavel($conexao, $funcao, $batalhao) {
     $stmt->bind_param("si", $funcao, $batalhao);
     $stmt->execute();
     $result = $stmt->get_result();
+
     if ($user = $result->fetch_assoc()) {
+        $stmt->close();
         return $user['postograd'] . " " . $user['nomecompleto'];
     }
+
+    $stmt->close();
     return "Não definido";
+}
+
+function atualizarDisponibilidadeFrota($conexao, $id_frota) {
+    if (!is_numeric($id_frota)) {
+        return;
+    }
+
+    $id_frota = (int)$id_frota;
+
+    $sql = "
+        SELECT
+            SUM(
+                CASE 
+                    WHEN LOWER(TRIM(causa_indisponibilidade)) = 'sim'
+                    THEN 1 ELSE 0 
+                END
+            ) AS total_indisponivel,
+
+            SUM(
+                CASE 
+                    WHEN LOWER(TRIM(causa_indisponibilidade)) IN ('não', 'nao')
+                    THEN 1 ELSE 0 
+                END
+            ) AS total_restricao
+
+        FROM os_principal
+        WHERE id_frota = ?
+          AND LOWER(TRIM(status)) NOT IN ('concluída', 'concluida')
+    ";
+
+    $stmt = $conexao->prepare($sql);
+    $stmt->bind_param("i", $id_frota);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    $dados = $res->fetch_assoc();
+    $stmt->close();
+
+    $total_indisponivel = (int)($dados['total_indisponivel'] ?? 0);
+    $total_restricao = (int)($dados['total_restricao'] ?? 0);
+
+    if ($total_indisponivel > 0) {
+        $disponibilidade = 'Indisponível';
+    } elseif ($total_restricao > 0) {
+        $disponibilidade = 'Disponível com restrição';
+    } else {
+        $disponibilidade = 'Disponível';
+    }
+
+    $stmtUpdate = $conexao->prepare("
+        UPDATE frota 
+        SET disponibilidade = ?
+        WHERE id = ?
+    ");
+    $stmtUpdate->bind_param("si", $disponibilidade, $id_frota);
+    $stmtUpdate->execute();
+    $stmtUpdate->close();
 }
 
 // ===========================================
 // Dados do formulário
 // ===========================================
 $aberta_por = $_SESSION['usuario_id'] ?? null;
-$batalhao = post('batalhao'); // <- agora vem do formulário
-$local_os = post('local_os');
+$batalhao = post('batalhao');
+$id_local_os = (int) post('local_os');
 $id_frota = post('id_frota');
 $odometro_horimetro = post('odometro_horimetro');
 $solicitante = post('solicitante');
@@ -58,20 +118,29 @@ $manutencoes_programadas = array_filter($manutencoes_programadas, 'is_numeric');
 $manutencoes_programadas = array_map('intval', $manutencoes_programadas);
 
 // ===========================================
-// 🔒 Validação: Local, Viatura e Batalhão da OS devem ser do mesmo batalhão
+// Validação: Local, Viatura e Batalhão da OS devem ser do mesmo batalhão
 // ===========================================
 
-// 1️⃣ Busca batalhão do local
-$sqlLocal = "SELECT batalhao FROM config_destinos WHERE destino = ? LIMIT 1";
+// 1. Busca batalhão do local
+$sqlLocal = "
+    SELECT destino, batalhao
+    FROM config_destinos
+    WHERE id = ?
+    LIMIT 1
+";
 $stmtLocal = $conexao->prepare($sqlLocal);
-$stmtLocal->bind_param("s", $local_os);
+$stmtLocal->bind_param("i", $id_local_os);
 $stmtLocal->execute();
 $resLocal = $stmtLocal->get_result();
-$local_batalhao = $resLocal->fetch_assoc()['batalhao'] ?? null;
+$dadosLocal = $resLocal->fetch_assoc();
+
+$local_batalhao = $dadosLocal['batalhao'] ?? null;
+$local_os = $dadosLocal['destino'] ?? null;
 $stmtLocal->close();
 
-// 2️⃣ Busca batalhão da viatura (se houver)
+// 2. Busca batalhão da viatura
 $viatura_batalhao = null;
+
 if (is_numeric($id_frota)) {
     $sqlVtr = "SELECT batalhao FROM frota WHERE id = ? LIMIT 1";
     $stmtVtr = $conexao->prepare($sqlVtr);
@@ -82,7 +151,7 @@ if (is_numeric($id_frota)) {
     $stmtVtr->close();
 }
 
-// 3️⃣ Valida coerência entre os três batalhões
+// 3. Valida coerência entre os três batalhões
 if (!$local_batalhao || !$viatura_batalhao || !$batalhao) {
     echo json_encode([
         "status" => "erro",
@@ -110,15 +179,18 @@ $ch_controle    = buscarResponsavel($conexao, 'Ch Seç Ctrl', $batalhao);
 // Busca prefixo ou define "Outra Vtr"
 // ===========================================
 $prefixo_sga = null;
+
 if (is_numeric($id_frota)) {
     $query = "SELECT prefixo_sga FROM frota WHERE id = ?";
     $stmtFrota = $conexao->prepare($query);
     $stmtFrota->bind_param("i", $id_frota);
     $stmtFrota->execute();
     $result = $stmtFrota->get_result();
+
     if ($row = $result->fetch_assoc()) {
         $prefixo_sga = $row['prefixo_sga'];
     }
+
     $stmtFrota->close();
 } else {
     $prefixo_sga = $id_frota;
@@ -133,6 +205,7 @@ $sql = "INSERT INTO os_principal (
     problema, secao_rspns, tipo_mnt, status, causa_indisponibilidade,
     prefixo_sga, data_abertura, aberta_por, cmt_ceem, ch_suprimento, ch_controle
 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
 $stmt = $conexao->prepare($sql);
 $stmt->bind_param(
     "isisssssssssisss",
@@ -164,21 +237,31 @@ try {
 
     $id_osprincipal = $stmt->insert_id;
 
+    // ===========================================
+    // Atualiza disponibilidade da frota
+    // ===========================================
+    if (is_numeric($id_frota)) {
+        atualizarDisponibilidadeFrota($conexao, $id_frota);
+    }
+
+    // ===========================================
     // Registra manutenções programadas realizadas
+    // ===========================================
     if (!empty($manutencoes_programadas) && is_numeric($id_frota)) {
 
-        // Confere marca/modelo da frota
         $sqlFrotaPlano = "
             SELECT marca, modelo 
             FROM frota 
             WHERE id = ? 
             LIMIT 1
         ";
+
         $stmtFrotaPlano = $conexao->prepare($sqlFrotaPlano);
         $stmtFrotaPlano->bind_param("i", $id_frota);
         $stmtFrotaPlano->execute();
         $resFrotaPlano = $stmtFrotaPlano->get_result();
         $dadosFrotaPlano = $resFrotaPlano->fetch_assoc();
+        $stmtFrotaPlano->close();
 
         if ($dadosFrotaPlano) {
             $data_execucao = date('Y-m-d', strtotime($data_abertura));
@@ -200,7 +283,6 @@ try {
 
             foreach ($manutencoes_programadas as $id_plano) {
 
-                // Segurança: só aceita plano compatível com marca/modelo da frota
                 $stmtValidaPlano = $conexao->prepare("
                     SELECT id 
                     FROM mnt_planos
@@ -210,18 +292,23 @@ try {
                       AND ativo = 1
                     LIMIT 1
                 ");
+
                 $stmtValidaPlano->bind_param(
                     "iii",
                     $id_plano,
                     $dadosFrotaPlano['marca'],
                     $dadosFrotaPlano['modelo']
                 );
+
                 $stmtValidaPlano->execute();
                 $resValidaPlano = $stmtValidaPlano->get_result();
 
                 if ($resValidaPlano->num_rows === 0) {
+                    $stmtValidaPlano->close();
                     continue;
                 }
+
+                $stmtValidaPlano->close();
 
                 $stmtInsMnt->bind_param(
                     "iiids",
@@ -234,6 +321,8 @@ try {
 
                 $stmtInsMnt->execute();
             }
+
+            $stmtInsMnt->close();
         }
     }
 
@@ -257,6 +346,8 @@ try {
         "mensagem" => "Erro ao salvar OS: " . $e->getMessage()
     ]);
 }
+
+$stmt->close();
 
 ob_end_flush();
 exit;

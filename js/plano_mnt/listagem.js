@@ -112,13 +112,13 @@ function ajustarCamposTipoPlanoMnt() {
   const camposTempo = document.querySelectorAll('.campo-tempo-mnt');
 
   camposValor.forEach(campo => {
-    campo.disabled = tipo === 'tempo';
-    if (tipo === 'tempo') campo.value = '';
+    campo.disabled = tipo === 'tempo' || tipo === 'conforme_necessidade';
+    if (tipo === 'tempo' || tipo === 'conforme_necessidade') campo.value = '';
   });
 
   camposTempo.forEach(campo => {
-    campo.disabled = tipo === 'odometro' || tipo === 'horimetro';
-    if (tipo === 'odometro' || tipo === 'horimetro') campo.value = '';
+    campo.disabled = tipo === 'odometro' || tipo === 'horimetro' || tipo === 'conforme_necessidade';
+    if (tipo === 'odometro' || tipo === 'horimetro' || tipo === 'conforme_necessidade') campo.value = '';
   });
 }
 
@@ -213,13 +213,13 @@ function ajustarCamposTipoPlanoMntEdit() {
   const camposTempo = document.querySelectorAll('.campo-edit-tempo-mnt');
 
   camposValor.forEach(campo => {
-    campo.disabled = tipo === 'tempo';
-    if (tipo === 'tempo') campo.value = '';
+    campo.disabled = tipo === 'tempo' || tipo === 'conforme_necessidade';
+    if (tipo === 'tempo' || tipo === 'conforme_necessidade') campo.value = '';
   });
 
   camposTempo.forEach(campo => {
-    campo.disabled = tipo === 'odometro' || tipo === 'horimetro';
-    if (tipo === 'odometro' || tipo === 'horimetro') campo.value = '';
+    campo.disabled = tipo === 'odometro' || tipo === 'horimetro' || tipo === 'conforme_necessidade';
+    if (tipo === 'odometro' || tipo === 'horimetro' || tipo === 'conforme_necessidade') campo.value = '';
   });
 }
 

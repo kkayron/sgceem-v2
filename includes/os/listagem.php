@@ -1094,7 +1094,7 @@ $statusClass = match ($os['status']) {
                 if (!empty($batalhoesPermitidos)) {
                     $placeholders = implode(',', array_fill(0, count($batalhoesPermitidos), '?'));
                     $sqlDestinos = "
-                        SELECT cd.destino, om.nome AS nome_batalhao
+                        SELECT cd.id, cd.destino, om.nome AS nome_batalhao
                         FROM config_destinos cd
                         JOIN organizacoes_militares om ON cd.batalhao = om.id
                         WHERE cd.batalhao IN ($placeholders)
@@ -1117,8 +1117,8 @@ $statusClass = match ($os['status']) {
                   <select class="form-select rounded-pill shadow-sm" id="local_os" name="local_os" required>
                     <option value="" disabled selected>Selecione o local da manutenção</option>
                     <?php foreach ($destinos as $dest): ?>
-                      <option value="<?= htmlspecialchars($dest['destino']) ?>">
-                        <?= htmlspecialchars($dest['destino'] . ' - ' . $dest['nome_batalhao']) ?>
+                      <option value="<?= $dest['id'] ?>">
+                      <?= htmlspecialchars($dest['destino'] . ' - ' . $dest['nome_batalhao']) ?>
                       </option>
                     <?php endforeach; ?>
                   </select>
@@ -1236,6 +1236,7 @@ $statusClass = match ($os['status']) {
                   <label for="tipo_mnt" class="form-label">Tipo de Manutenção</label>
                   <select class="form-select rounded-pill shadow-sm" id="tipo_mnt" name="tipo_mnt" required>
       <option value="" disabled selected>Selecione o tipo mnt</option>
+      <option value="Manutenção Agendada">Manutenção Agendada</option>
       <option value="Manutenção Preventiva">Manutenção Preventiva</option>
       <option value="Manutenção Preditiva">Manutenção Preditiva</option>
       <option value="Manutenção Corretiva">Manutenção Corretiva</option>
@@ -1320,6 +1321,7 @@ $statusClass = match ($os['status']) {
               <label class="form-label">Tipo MNT</label>
               <select class="form-select" name="tipo_mnt">
       <option value="" disabled selected>Selecione o tipo mnt</option>
+      <option value="Manutenção Agendada">Manutenção Agendada</option>
       <option value="Manutenção Preventiva">Manutenção Preventiva</option>
       <option value="Manutenção Preditiva">Manutenção Preditiva</option>
       <option value="Manutenção Corretiva">Manutenção Corretiva</option>

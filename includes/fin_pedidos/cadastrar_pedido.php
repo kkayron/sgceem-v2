@@ -46,7 +46,7 @@ $situacao_pedido = post('situacao_pedido');
 $data_pedido = post('data_pedido');
 $id_vtr = post('id_vtr');
 $desconto_empenho = post('desconto_empenho');
-$local_pedido = post('local_pedido');
+$id_local_pedido = (int) post('local_pedido');
 $batalhao = post('batalhao');
 $id_os = post('id_os');
 
@@ -89,56 +89,116 @@ try {
     // ============================
     // VERIFICA SE OS, LOCAL, VIATURA E BATALHÃO SÃO DA MESMA OM
     // ============================
-    $batalhao_os = null;
-    $batalhao_local = null;
-    $batalhao_vtr = null;
+   $batalhao_os = null;
+$batalhao_local = null;
+$batalhao_vtr = null;
+$local_pedido = null;
 
-    // Busca batalhão da OS
-    if (!empty($id_os) && $id_os !== 'Sem OS') {
-        $sql_os = "SELECT batalhao FROM os_principal WHERE id = ?";
-        $stmt_os = $conexao->prepare($sql_os);
-        $stmt_os->bind_param("s", $id_os);
-        $stmt_os->execute();
-        $res_os = $stmt_os->get_result();
-        if ($res_os->num_rows > 0) {
-            $batalhao_os = $res_os->fetch_assoc()['batalhao'];
-        }
+// Busca batalhão da OS
+if (!empty($id_os) && $id_os !== 'Sem OS') {
+
+    $sql_os = "SELECT batalhao
+               FROM os_principal
+               WHERE id = ?";
+
+    $stmt_os = $conexao->prepare($sql_os);
+    $stmt_os->bind_param("i", $id_os);
+    $stmt_os->execute();
+
+    $res_os = $stmt_os->get_result();
+
+    if ($res_os->num_rows > 0) {
+        $batalhao_os = (int)$res_os->fetch_assoc()['batalhao'];
     }
+}
 
-    // Busca batalhão do local do pedido
-    if (!empty($local_pedido)) {
-        $sql_local = "SELECT batalhao FROM config_destinos WHERE destino = ? LIMIT 1";
-        $stmt_local = $conexao->prepare($sql_local);
-        $stmt_local->bind_param("s", $local_pedido);
-        $stmt_local->execute();
-        $res_local = $stmt_local->get_result();
-        if ($res_local->num_rows > 0) {
-            $batalhao_local = $res_local->fetch_assoc()['batalhao'];
-        }
+// Busca local pelo ID
+if (!empty($id_local_pedido)) {
+
+    $sql_local = "
+        SELECT destino, batalhao
+        FROM config_destinos
+        WHERE id = ?
+        LIMIT 1
+    ";
+
+    $stmt_local = $conexao->prepare($sql_local);
+    $stmt_local->bind_param("i", $id_local_pedido);
+    $stmt_local->execute();
+
+    $res_local = $stmt_local->get_result();
+
+    if ($res_local->num_rows > 0) {
+
+        $dadosLocal = $res_local->fetch_assoc();
+
+        $local_pedido = $dadosLocal['destino'];
+        $batalhao_local = (int)$dadosLocal['batalhao'];
     }
+}
 
-    // Busca batalhão da viatura
-    if (!empty($id_vtr)) {
-        $sql_vtr = "SELECT batalhao FROM frota WHERE id = ?";
-        $stmt_vtr = $conexao->prepare($sql_vtr);
-        $stmt_vtr->bind_param("s", $id_vtr);
-        $stmt_vtr->execute();
-        $res_vtr = $stmt_vtr->get_result();
-        if ($res_vtr->num_rows > 0) {
-            $batalhao_vtr = $res_vtr->fetch_assoc()['batalhao'];
-        }
+// Busca batalhão da viatura
+if (!empty($id_vtr)) {
+
+    $sql_vtr = "
+        SELECT batalhao
+        FROM frota
+        WHERE id = ?
+    ";
+
+    $stmt_vtr = $conexao->prepare($sql_vtr);
+    $stmt_vtr->bind_param("i", $id_vtr);
+    $stmt_vtr->execute();
+
+    $res_vtr = $stmt_vtr->get_result();
+
+    if ($res_vtr->num_rows > 0) {
+        $batalhao_vtr = (int)$res_vtr->fetch_assoc()['batalhao'];
     }
+}
 
-    // Verifica se todos pertencem à mesma OM
-    $batalhoes = array_filter([$batalhao, $batalhao_os, $batalhao_local, $batalhao_vtr]);
-    if (count(array_unique($batalhoes)) > 1) {
-        echo json_encode([
-            "status" => "erro",
-            "mensagem" => "O batalhão da OS, do Local, da Viatura e o selecionado devem pertencer à mesma Organização Militar."
-        ]);
-        exit;
-    }
+// DEBUG (remova depois)
+error_log(
+    "PEDIDO => ".
+    "BATALHAO={$batalhao} | ".
+    "OS={$batalhao_os} | ".
+    "LOCAL={$batalhao_local} | ".
+    "VTR={$batalhao_vtr}"
+);
 
+// Verifica se todos pertencem à mesma OM
+$batalhoes = [];
+
+if (!empty($batalhao)) {
+    $batalhoes[] = (int)$batalhao;
+}
+
+if (!empty($batalhao_os)) {
+    $batalhoes[] = (int)$batalhao_os;
+}
+
+if (!empty($batalhao_local)) {
+    $batalhoes[] = (int)$batalhao_local;
+}
+
+if (!empty($batalhao_vtr)) {
+    $batalhoes[] = (int)$batalhao_vtr;
+}
+
+if (count(array_unique($batalhoes)) > 1) {
+
+    echo json_encode([
+        "status" => "erro",
+        "mensagem" =>
+            "Batalhões divergentes. "
+            ."Selecionado={$batalhao}, "
+            ."OS={$batalhao_os}, "
+            ."Local={$batalhao_local}, "
+            ."Viatura={$batalhao_vtr}"
+    ]);
+
+    exit;
+}
     // ============================
     // INSERÇÃO DO PEDIDO
     // ============================

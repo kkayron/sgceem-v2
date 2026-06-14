@@ -326,6 +326,7 @@ $queryString = http_build_query($paramsGET);
         <div class="modal-body">
           <div class="row g-3">
 
+  <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?? '' ?>">
             <div class="col-md-12">
               <label for="abreviatura" class="form-label fw-semibold">Abreviatura</label>
               <input type="text" class="form-control" id="abreviatura" name="abreviatura" placeholder="Ex: MN" required>
@@ -381,6 +382,7 @@ $queryString = http_build_query($paramsGET);
 
             <!-- ID oculto -->
             <input type="hidden" id="editarTipoRVId" name="id">
+  <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?? '' ?>">
 
             <!-- Abreviatura -->
             <div class="col-md-12">
