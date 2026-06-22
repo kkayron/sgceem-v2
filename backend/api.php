@@ -45,8 +45,9 @@ require_once __DIR__ . '/bootstrap.php';
 // Inicializar o Roteador
 $router = new \Bramus\Router\Router();
 
-// Define a base path já que o Vite faz proxy via /api
-$router->setBasePath('/api');
+// Define a base path já que o Vite faz proxy via /api ou acessamos via /api.php localmente
+$basePath = (strpos($_SERVER['REQUEST_URI'], '/api.php') === 0) ? '/api.php' : '/api';
+$router->setBasePath($basePath);
 
 // Middleware de Segurança (Protege todas as rotas em /v1, EXCETO /v1/auth)
 $router->before('GET|POST|PUT|DELETE', '/v1/(?!auth).*', function() {
