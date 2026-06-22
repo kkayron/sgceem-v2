@@ -1,0 +1,400 @@
+/* CSS Document */
+
+  .pagination-wrapper .pagination {
+  margin: 0;
+}
+
+/* Força paginação SEMPRE na horizontal */
+.pagination-wrapper .pagination {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: wrap !important;      /* quebra linha se faltar espaço */
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px;                        /* espaço entre botões */
+  padding-left: 0 !important;
+  margin: 0 !important;
+}
+
+.pagination-wrapper .pagination .page-item {
+  display: inline-flex !important; /* evita virar bloco */
+  margin: 0 !important;
+}
+
+.pagination-wrapper .pagination .page-link {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-width: 36px;
+  padding: 6px 10px;
+  line-height: 1.1;
+}
+
+@media (max-width: 576px) {
+  .pagination-wrapper .page-link {
+    min-width: 34px;
+    padding: 6px 8px;
+    font-size: 13px;
+  }
+}
+    /* ============================================
+       Refinamento Visual (Tema Claro)
+       ============================================ */
+
+    body {
+      font-family: "Inter", "Public Sans", sans-serif;
+      background: #f5f7fa;
+      color: #333;
+    }
+
+    /* Títulos mais limpos */
+    h1, h2, h3, h4, h5, h6 {
+      font-weight: 600;
+      color: #2d2f33;
+    }
+
+    /* Links discretos */
+    a {
+      color: #0d6efd;
+      text-decoration: none !important;
+    }
+    a:hover {
+      color: #0b5ed7;
+    }
+
+    /* Cards mais elegantes */
+    .card {
+      border-radius: 10px;
+      border: 1px solid #e5e7eb;
+    }
+
+    .card-header {
+      background: #fff;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    /* Botões modernos */
+    .btn-primary {
+      border-radius: 6px;
+      font-weight: 500;
+      padding: 0.45rem 1.1rem;
+    }
+
+    /* DataTables integrado ao tema claro */
+    table.dataTable thead th {
+      font-weight: 600;
+      color: #2d2f33 !important;
+      border-bottom: 2px solid #dee2e6 !important;
+    }
+
+    table.dataTable tbody tr:hover {
+      background: rgba(13, 110, 253, 0.05) !important;
+    }
+
+    /* Paginação suave */
+    .pagination-wrapper {
+      display: flex;
+      justify-content: center;
+      margin: 1rem 0;
+    }
+
+    .pagination {
+      display: flex;
+      list-style: none;
+      gap: 0.5rem;
+      padding-left: 0;
+    }
+
+    .pagination .page-item .page-link {
+      min-width: 38px;
+      height: 38px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: #fff;
+      border: 1px solid #dee2e6;
+      color: #555;
+      border-radius: 6px;
+      transition: 0.25s;
+    }
+
+    .pagination .page-item .page-link:hover {
+      background: #f0f2f5;
+      transform: translateY(-2px);
+    }
+
+    .pagination .page-item.active .page-link {
+      background: #0d6efd;
+      border-color: #0d6efd;
+      color: #fff;
+      font-weight: 600;
+      box-shadow: 0 2px 6px rgba(13,110,253,0.3);
+    }
+	   #conteudo {
+    visibility: hidden;
+       padding-top: 50px;
+     width: 100%;
+  }
+
+@media (max-width: 991px) {
+  .sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    height: 100vh;
+    transform: translateX(-100%);
+    z-index: 1050;
+    transition: transform 0.3s ease;
+  }
+
+  body.sidebar-open .sidebar {
+    transform: translateX(0);
+  }
+}
+/* Sidebar militar */
+.military-sidebar {
+  background: #0d0f11 !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Logo reduzida SGC */
+.logo-mini {
+  display: none;
+  font-size: 18px;
+  margin-left: 10px;
+  letter-spacing: 2px;
+}
+
+/* Quando sidebar recolher */
+.sidebar.sidebar-mini .full-logo {
+  display: none !important;
+}
+.sidebar.sidebar-mini .logo-mini {
+  display: inline-block !important;
+}
+
+/* Links militares */
+.military-nav-item > a {
+  color: #d4d7d0 !important;
+  font-weight: 500;
+  transition: 0.2s;
+}
+
+.military-nav-item > a i {
+  color: #7faa49 !important; /* Verde tático */
+}
+
+.military-nav-item > a:hover {
+  background: rgba(127, 170, 73, 0.15);
+  border-left: 3px solid #7faa49;
+  padding-left: 17px;
+  color: white !important;
+}
+
+.nav-section h4 {
+  color: #7faa49 !important;
+  font-size: 12px;
+}
+
+/* Submenus */
+.nav-collapse a:hover {
+  background: rgba(127, 170, 73, 0.1);
+  color: #7faa49 !important;
+}
+
+.frota-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 15px;
+  border-bottom: 1px solid #ddd;
+}
+.frota-info {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex: 1 1 100%;
+}
+.frota-item img {
+  width: 150px;
+  height: 150px;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 2px solid #ccc;
+}
+.btn-group-responsive {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+@media (min-width: 768px) {
+  .btn-group-responsive {
+    flex: 0 0 auto;
+    margin-left: auto;
+  }
+  .btn-icon {
+    display: none;
+  }
+}
+@media (max-width: 767px) {
+  .btn-text {
+    display: none;
+  }
+  .btn-group-responsive {
+    margin-top: 10px;
+    width: 100%;
+  }
+}
+.btn-group .btn {
+  border-radius: 20px;
+  transition: all 0.3s ease;
+    margin-left: 10px;
+/* ============================================
+   💎 SGCEEM - Premium UI Enhancements
+   ============================================ */
+
+/* Suavidade geral nas transições */
+* {
+  transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* Glassmorphism na Navbar Principal */
+.main-header {
+  background: rgba(255, 255, 255, 0.85) !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
+}
+
+/* Cards com elevação suave */
+.card {
+  border-radius: 12px;
+  border: none;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+}
+
+/* Melhoria nos Botões */
+.btn {
+  border-radius: 8px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  text-transform: none;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #0d6efd 0%, #0056b3 100%);
+  border: none;
+  box-shadow: 0 4px 12px rgba(13, 110, 253, 0.3);
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, #0056b3 0%, #004494 100%);
+  box-shadow: 0 6px 16px rgba(13, 110, 253, 0.4);
+  transform: translateY(-1px);
+}
+
+.btn-success {
+  background: linear-gradient(135deg, #198754 0%, #146c43 100%);
+  border: none;
+  box-shadow: 0 4px 12px rgba(25, 135, 84, 0.3);
+}
+
+.btn-success:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(25, 135, 84, 0.4);
+}
+
+/* Tabelas Refinadas */
+.table-responsive {
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+table.dataTable {
+  border-collapse: separate !important;
+  border-spacing: 0;
+}
+
+table.dataTable thead th {
+  background-color: #f8f9fa;
+  border-bottom: none !important;
+  text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  color: #6c757d !important;
+  padding: 15px;
+}
+
+table.dataTable tbody tr {
+  transition: all 0.2s ease;
+}
+
+table.dataTable tbody tr:hover {
+  background-color: rgba(13, 110, 253, 0.04) !important;
+  transform: scale(1.002);
+  box-shadow: inset 2px 0 0 #0d6efd;
+}
+
+table.dataTable tbody td {
+  padding: 12px 15px;
+  vertical-align: middle;
+  border-bottom: 1px solid #f0f2f5;
+}
+
+/* Inputs e Formulários */
+.form-control, .form-select {
+  border-radius: 8px;
+  border: 1px solid #e0e4e8;
+  padding: 10px 15px;
+  transition: all 0.2s ease;
+  background-color: #fcfcfc;
+}
+
+.form-control:focus, .form-select:focus {
+  background-color: #fff;
+  border-color: #0d6efd;
+  box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.15);
+}
+
+/* Melhorias no Sidebar (Tema Escuro Militar) */
+.military-sidebar {
+  background: linear-gradient(180deg, #111417 0%, #0a0c0e 100%) !important;
+  box-shadow: 4px 0 15px rgba(0, 0, 0, 0.1);
+}
+
+.military-nav-item > a {
+  border-radius: 8px;
+  margin: 4px 12px;
+}
+
+.military-nav-item > a:hover {
+  background: rgba(127, 170, 73, 0.2) !important;
+  transform: translateX(4px);
+  border-left: none !important;
+}
+
+/* Animação suave no carregamento do conteúdo via AJAX */
+#conteudo {
+  animation: fadeInContent 0.4s ease forwards;
+}
+
+@keyframes fadeInContent {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

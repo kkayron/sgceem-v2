@@ -1,0 +1,15 @@
+{
+    "name": "gceem/backend",
+    "description": "SGCEEM Backend API",
+    "require": {
+        "illuminate/database": "*",
+        "bramus/router": "*",
+        "firebase/php-jwt": "*"
+    },
+    "authors": [
+        {
+            "name": "Kayron Dev",
+            "email": "kayron@example.com"
+        }
+    ]
+}

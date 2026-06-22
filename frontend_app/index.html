@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="/assets/img/kaiadmin/favicon.png" type="image/x-icon" />
+    <title>SGCEEM v2.0 - Headless App</title>
+
+    <!-- WebFonts -->
+    <script src="/assets/js/plugin/webfont/webfont.min.js"></script>
+    <script>
+      WebFont.load({
+        google: { families: ["Inter:300,400,500,600,700", "Public Sans:300,400,500,600,700"] },
+        custom: {
+          families: ["Font Awesome 5 Solid", "Font Awesome 5 Regular", "Font Awesome 5 Brands", "simple-line-icons"],
+          urls: ["/assets/css/fonts.min.css"],
+        },
+        active: () => sessionStorage.fonts = true
+      });
+    </script>
+
+    <!-- CSS Base -->
+    <link rel="stylesheet" href="/assets/css/extras.css" />
+    <link rel="stylesheet" href="/assets/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="/assets/css/plugins.min.css" />
+    <link rel="stylesheet" href="/assets/css/kaiadmin.min.css" />
+  </head>
+  <body>
+    <div id="root"></div>
+    
+    <!-- Scripts JS do Kaiadmin para interatividade (Menus, Sidebar, etc) -->
+    <script src="/assets/js/core/jquery-3.7.1.min.js"></script>
+    <script src="/assets/js/core/popper.min.js"></script>
+    <script src="/assets/js/core/bootstrap.min.js"></script>
+    <script src="/assets/js/plugin/jquery-scrollbar/jquery.scrollbar.min.js"></script>
+    <script src="/assets/js/kaiadmin.min.js"></script>
+    
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

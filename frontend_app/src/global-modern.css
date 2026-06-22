@@ -1,0 +1,163 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@300;400;500;600;700;800&display=swap');
+
+/* GLOBAL OVERRIDES */
+body {
+    font-family: 'Inter', sans-serif !important;
+    background-color: #f8fafc !important; /* Slate 50 */
+    color: #0f172a !important; /* Slate 900 */
+}
+
+h1, h2, h3, h4, h5, h6 {
+    font-family: 'Outfit', sans-serif !important;
+    letter-spacing: -0.5px;
+}
+
+/* BUTTONS UPGRADE */
+.btn {
+    border-radius: 12px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.3px;
+    padding: 10px 20px !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    border: none !important;
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px -10px rgba(0,0,0,0.3) !important;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%) !important;
+    box-shadow: 0 4px 14px 0 rgba(37, 99, 235, 0.39) !important;
+    color: white !important;
+}
+
+.btn-success {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+    box-shadow: 0 4px 14px 0 rgba(16, 185, 129, 0.39) !important;
+    color: white !important;
+}
+
+.btn-danger {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
+    box-shadow: 0 4px 14px 0 rgba(239, 68, 68, 0.39) !important;
+    color: white !important;
+}
+
+.btn-warning {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
+    box-shadow: 0 4px 14px 0 rgba(245, 158, 11, 0.39) !important;
+    color: white !important;
+}
+
+.btn-info {
+    background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%) !important;
+    box-shadow: 0 4px 14px 0 rgba(14, 165, 233, 0.39) !important;
+    color: white !important;
+}
+
+/* CARDS UPGRADE */
+.card {
+    border-radius: 24px !important;
+    border: 1px solid rgba(255, 255, 255, 0.5) !important;
+    background: rgba(255, 255, 255, 0.9) !important;
+    backdrop-filter: blur(12px) !important;
+    box-shadow: 0 10px 40px -10px rgba(15, 23, 42, 0.05) !important;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    overflow: hidden;
+}
+
+.card:hover {
+    box-shadow: 0 20px 40px -10px rgba(15, 23, 42, 0.1) !important;
+}
+
+.card-header {
+    background: transparent !important;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05) !important;
+}
+
+/* SIDEBAR UPGRADE */
+.sidebar {
+    background: linear-gradient(180deg, #0f172a 0%, #020617 100%) !important;
+    box-shadow: 4px 0 24px rgba(0,0,0,0.1) !important;
+    border-right: 1px solid rgba(255,255,255,0.05) !important;
+}
+
+.sidebar .nav-item a {
+    border-radius: 12px !important;
+    margin: 4px 16px !important;
+    transition: all 0.3s ease !important;
+    color: #94a3b8 !important;
+}
+
+.sidebar .nav-item a:hover, .sidebar .nav-item.active > a {
+    background: rgba(255,255,255,0.1) !important;
+    backdrop-filter: blur(8px) !important;
+    color: #ffffff !important;
+    transform: translateX(4px);
+}
+
+.sidebar .nav-item.active > a {
+    background: linear-gradient(90deg, rgba(59,130,246,0.2) 0%, rgba(59,130,246,0) 100%) !important;
+    border-left: 4px solid #3b82f6 !important;
+}
+
+.sidebar .nav-item i {
+    color: #64748b !important;
+}
+
+.sidebar .nav-item.active > a i, .sidebar .nav-item a:hover i {
+    color: #60a5fa !important;
+}
+
+.logo-header {
+    background: transparent !important;
+    border-bottom: 1px solid rgba(255,255,255,0.05) !important;
+}
+
+/* INPUTS & FORMS */
+.form-control, .form-select {
+    border-radius: 12px !important;
+    border: 1px solid #e2e8f0 !important;
+    padding: 12px 16px !important;
+    font-size: 14px !important;
+    transition: all 0.3s ease !important;
+    background: #ffffff !important;
+}
+
+.form-control:focus, .form-select:focus {
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1) !important;
+    border-color: #3b82f6 !important;
+}
+
+/* TABLES */
+.table {
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+}
+
+.table th {
+    font-family: 'Outfit', sans-serif !important;
+    font-size: 12px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 1px !important;
+    color: #64748b !important;
+    border-bottom: 2px solid #f1f5f9 !important;
+    background: #f8fafc !important;
+}
+
+.table td {
+    vertical-align: middle !important;
+    border-bottom: 1px solid #f1f5f9 !important;
+    font-weight: 500 !important;
+    color: #334155 !important;
+}
+
+/* BADGES */
+.badge {
+    border-radius: 8px !important;
+    padding: 6px 12px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.5px;
+}

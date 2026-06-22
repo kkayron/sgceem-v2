@@ -1,8 +1,0 @@
-Array
-(
-    [pagina] => 1
-    [data] => 
-    [usuario] => 
-    [acao] => 
-    [palavra] => 
-)
