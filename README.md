@@ -36,5 +36,32 @@ A arquitetura passou por uma reescrita profunda, abandonando os gargalos do pass
 - **Dossiê em PDF:** Exportação formal do Livro Histórico de Viaturas com um clique.
 - **Fábrica Dinâmica de Formulários:** Componente genérico (`CrudTable.jsx`) capaz de renderizar formulários e tabelas para qualquer entidade do banco de dados baseando-se em esquemas JSON predefinidos.
 
+## 💻 Como Rodar Localmente (Ambiente de Desenvolvimento)
+
+Para executar o SGCEEM v2.0 na sua máquina local, você precisará de **Node.js**, **PHP 8.2+** e **Composer** previamente instalados e adicionados às variáveis de ambiente (PATH).
+> **Nota:** Os passos abaixo são 100% compatíveis com **Windows (CMD/PowerShell)**, **Linux (Terminal)** e **macOS**.
+
+### 1. Configurando o Banco de Dados
+- O sistema já possui um arquivo `.env` configurado na raiz para um banco de dados PostgreSQL na nuvem (Supabase).
+- Se você desejar rodar testes com um banco local totalmente isolado, suba uma instância do PostgreSQL, importe o arquivo `sgceem_v2_pg.sql` contido na raiz e atualize as credenciais (`DB_HOST`, `DB_USERNAME`, etc.) no seu `.env`.
+
+### 2. Iniciando o Servidor Backend (API)
+Abra o seu terminal (CMD/PowerShell no Windows ou Terminal no Linux) na pasta raiz do projeto e execute:
+```sh
+cd backend
+composer install
+php -S localhost:8000 router.php
+```
+
+### 3. Iniciando o Servidor Frontend (React/Vite)
+Abra um **segundo terminal** na pasta raiz do projeto e execute:
+```sh
+cd frontend_app
+npm install
+npm run dev
+```
+
+Após isso, o painel do sistema estará disponível no seu navegador em `http://localhost:5173` (ou a porta informada pelo Vite).
+
 ---
 > Desenvolvido e Arquitetado por **Kayron Santos** (@kkayron)
